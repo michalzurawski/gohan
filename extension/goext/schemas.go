@@ -91,8 +91,10 @@ type ISchema interface {
 	ID() string
 
 	// database
-	List(resources interface{}, filter Filter, paginator *Paginator, context Context) error
-	LockList(resources interface{}, filter Filter, paginator *Paginator, context Context, lockingPolicy LockPolicy) error
+	ListRaw(resources interface{}, filter Filter, paginator *Paginator, context Context) error
+	List(filter Filter, paginator *Paginator, context Context) ([]interface{}, error)
+	LockListRaw(resources interface{}, filter Filter, paginator *Paginator, context Context, lockingPolicy LockPolicy) error
+	LockList(filter Filter, paginator *Paginator, context Context, lockingPolicy LockPolicy) ([]interface{}, error)
 	Fetch(id string, resource interface{}, context Context) error
 	LockFetch(id string, resource interface{}, context Context, lockingPolicy LockPolicy) error
 	FetchRelated(resource interface{}, relatedResource interface{}, context Context) error
@@ -102,6 +104,7 @@ type ISchema interface {
 
 	// events
 	RegisterEventHandler(event string, handler func(context Context, resource Resource, environment IEnvironment) error, priority Priority)
+	RegisterRawType(resourceType interface{})
 	RegisterResourceType(resourceType interface{})
 }
 

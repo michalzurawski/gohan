@@ -139,8 +139,8 @@ func (thisSchema *Schema) assignField(name string, field reflect.Value, value in
 	return nil
 }
 
-// List lists schema resources
-func (thisSchema *Schema) List(resources interface{}, filter goext.Filter, paginator *goext.Paginator, context goext.Context) error {
+// ListRaw lists schema raw resources
+func (thisSchema *Schema) ListRaw(resources interface{}, filter goext.Filter, paginator *goext.Paginator, context goext.Context) error {
 	if !isPointer(resources) {
 		return NotPointerErr
 	}
@@ -193,13 +193,57 @@ func (thisSchema *Schema) List(resources interface{}, filter goext.Filter, pagin
 	return nil
 }
 
-// LockList locks and returns resources
-func (thisSchema *Schema) LockList(resources interface{}, filter goext.Filter, paginator *goext.Paginator, context goext.Context, policy goext.LockPolicy) error {
+// LockListRaw locks and returns raw resources
+func (thisSchema *Schema) LockListRaw(resources interface{}, filter goext.Filter, paginator *goext.Paginator, context goext.Context, policy goext.LockPolicy) error {
 	if !isPointer(resources) {
 		return NotPointerErr
 	}
 	//TODO: implement proper locking
-	return thisSchema.List(resources, filter, paginator, context)
+	return thisSchema.ListRaw(resources, filter, paginator, context)
+}
+
+// List returns list of resources.
+// Schema, Logger, Environment and pointer to raw resource are required fields in the resource
+func (thisSchema *Schema) List(filter goext.Filter, paginator *goext.Paginator, context goext.Context) ([]interface{}, error) {
+	rawResources := reflect.Zero(reflect.SliceOf(GlobRawTypes[thisSchema.ID()]))
+	xRaw := reflect.New(rawResources.Type())
+	xRaw.Elem().Set(rawResources)
+	if err := thisSchema.ListRaw(xRaw.Interface(), filter, paginator, context); err != nil {
+		return nil, err
+	}
+	return thisSchema.rawToResource(xRaw)
+}
+
+// LockList locks and returns list of resources.
+// Schema, Logger, Environment and pointer to raw resource are required fields in the resource
+func (thisSchema *Schema) LockList(filter goext.Filter, paginator *goext.Paginator, context goext.Context, policy goext.LockPolicy) ([]interface{}, error) {
+	rawResources := reflect.Zero(reflect.SliceOf(GlobRawTypes[thisSchema.ID()]))
+	xRaw := reflect.New(rawResources.Type())
+	xRaw.Elem().Set(rawResources)
+	if err := thisSchema.LockListRaw(xRaw.Interface(), filter, paginator, context, policy); err != nil {
+		return nil, err
+	}
+	return thisSchema.rawToResource(xRaw)
+}
+
+func (thisSchema *Schema) rawToResource(xRaw reflect.Value) ([]interface{}, error) {
+	xRaw = xRaw.Elem()
+	resources := reflect.MakeSlice(reflect.SliceOf(GlobResourceTypes[thisSchema.ID()]), xRaw.Len(), xRaw.Len())
+	x := reflect.New(resources.Type())
+	x.Elem().Set(resources)
+	x = x.Elem()
+
+	res := make([]interface{}, xRaw.Len(), xRaw.Len())
+	for i := 0; i < xRaw.Len(); i++ {
+		rawResource := xRaw.Index(i)
+		resource := x.Index(i)
+		setValue(resource.FieldByName(xRaw.Index(i).Type().Name()), rawResource.Addr())
+		setValue(resource.FieldByName("Schema"), reflect.ValueOf(thisSchema))
+		setValue(resource.FieldByName("Logger"), reflect.ValueOf(NewLogger(thisSchema.environment)))
+		setValue(resource.FieldByName("Environment"), reflect.ValueOf(thisSchema.environment))
+		res[i] = resources.Index(i).Interface()
+	}
+	return res, nil
 }
 
 // FetchRelated fetches related resources
@@ -256,7 +300,7 @@ func (thisSchema *Schema) Fetch(id string, res interface{}, context goext.Contex
 	if err != nil {
 		return err
 	}
-	resourceType, ok := GlobResourceTypes[thisSchema.rawSchema.ID]
+	resourceType, ok := GlobRawTypes[thisSchema.rawSchema.ID]
 	if !ok {
 		return fmt.Errorf("No type registered for schema title: %s", thisSchema.rawSchema.ID)
 	}
@@ -470,10 +514,10 @@ func (thisSchema *Schema) Delete(filter goext.Filter, context goext.Context) err
 	contextTx := goext.MakeContext()
 	contextSetTransaction(contextTx, tx)
 
-	resources := reflect.Zero(reflect.SliceOf(GlobResourceTypes[thisSchema.ID()]))
+	resources := reflect.Zero(reflect.SliceOf(GlobRawTypes[thisSchema.ID()]))
 	x := reflect.New(resources.Type())
 	x.Elem().Set(resources)
-	if err := thisSchema.LockList(x.Interface(), filter, nil, contextTx, goext.LockRelatedResources); err != nil {
+	if err := thisSchema.LockListRaw(x.Interface(), filter, nil, contextTx, goext.LockRelatedResources); err != nil {
 		return err
 	}
 
@@ -517,6 +561,11 @@ func (thisSchema *Schema) Delete(filter goext.Filter, context goext.Context) err
 // RegisterEventHandler registers a schema handler
 func (thisSchema *Schema) RegisterEventHandler(event string, handler func(context goext.Context, resource goext.Resource, environment goext.IEnvironment) error, priority goext.Priority) {
 	thisSchema.environment.RegisterSchemaEventHandler(thisSchema.rawSchema.ID, event, handler, priority)
+}
+
+// RegisterRawType registers a runtime type for a raw resource
+func (thisSchema *Schema) RegisterRawType(typeValue interface{}) {
+	thisSchema.environment.RegisterRawType(thisSchema.rawSchema.ID, typeValue)
 }
 
 // RegisterResourceType registers a runtime type for a resource

@@ -36,6 +36,13 @@ type IEnvironmentSupport interface {
 	Environment() IEnvironment
 }
 
+// Base is the base class for all resources
+type Base struct {
+	Environment IEnvironment
+	Logger      ILogger
+	Schema      ISchema
+}
+
 type NullString struct {
 	String string
 	Valid  bool
