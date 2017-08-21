@@ -68,6 +68,9 @@ var GlobHandlers EventPrioritizedHandlers
 // GlobSchemaHandlers is a global registry of schema handlers
 var GlobSchemaHandlers EventSchemaPrioritizedSchemaHandlers
 
+// GlobRawTypes is a global registry of runtime types used to map raw resources
+var GlobRawTypes = make(map[string]reflect.Type)
+
 // GlobResourceTypes is a global registry of runtime types used to map resources
 var GlobResourceTypes = make(map[string]reflect.Type)
 
@@ -460,7 +463,7 @@ func (thisEnvironment *Environment) resourceToMap(resource interface{}) interfac
 func (thisEnvironment *Environment) resourceFromContext(sch Schema, context map[string]interface{}) (res goext.Resource, err error) {
 	rawSchema := sch.rawSchema
 
-	resourceType, ok := GlobResourceTypes[rawSchema.ID]
+	resourceType, ok := GlobRawTypes[rawSchema.ID]
 	if !ok {
 		return nil, fmt.Errorf("No type registered for schema title: %s", rawSchema.ID)
 	}
@@ -550,7 +553,18 @@ func (thisEnvironment *Environment) RegisterSchemaEventHandler(schemaID string, 
 	GlobSchemaHandlers[event][schemaID][priority] = append(GlobSchemaHandlers[event][schemaID][priority], handler)
 }
 
-// RegisterResourceType registers a runtime type for a given name
+// RegisterRawType registers a runtime type of raw resource for a given name
+func (thisEnvironment *Environment) RegisterRawType(name string, typeValue interface{}) {
+	targetType := reflect.TypeOf(typeValue)
+	GlobRawTypes[name] = targetType
+}
+
+// RawType returns a runtime type for a given named raw resource
+func (thisEnvironment *Environment) RawType(name string) reflect.Type {
+	return GlobRawTypes[name]
+}
+
+// RegisterResourceType registers a runtime type of resource for a given name
 func (thisEnvironment *Environment) RegisterResourceType(name string, typeValue interface{}) {
 	targetType := reflect.TypeOf(typeValue)
 	GlobResourceTypes[name] = targetType
@@ -568,7 +582,7 @@ func (thisEnvironment *Environment) Stop() {
 	// reset globals
 	GlobHandlers = nil
 	GlobSchemaHandlers = nil
-	GlobResourceTypes = make(map[string]reflect.Type)
+	GlobRawTypes = make(map[string]reflect.Type)
 	GlobEnvironments = map[string]*Environment{}
 
 	// reset locals
