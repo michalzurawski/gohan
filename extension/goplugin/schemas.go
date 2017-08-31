@@ -269,7 +269,7 @@ func (thisSchema *Schema) rawToResource(xRaw reflect.Value) interface{} {
 	setValue(resource.FieldByName("Schema"), reflect.ValueOf(thisSchema))
 	setValue(resource.FieldByName("Logger"), reflect.ValueOf(NewLogger(thisSchema.environment)))
 	setValue(resource.FieldByName("Environment"), reflect.ValueOf(thisSchema.environment))
-	return resource.Interface()
+	return resource.Addr().Interface()
 }
 
 // FetchRelatedRaw fetches related resources
