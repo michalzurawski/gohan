@@ -91,26 +91,24 @@ var _ = Describe("Transaction", func() {
 
 		It("Lists previously created resource", func() {
 			Expect(testSchema.CreateRaw(&createdResource, context)).To(Succeed())
-			returnedResources := []test.Test{}
-			err := testSchema.ListRaw(&returnedResources, goext.Filter{}, nil, context)
-			Expect(err).To(BeNil())
+			returnedResources, err := testSchema.ListRaw(goext.Filter{}, nil, context)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(returnedResources).To(HaveLen(1))
 			returnedResource := returnedResources[0]
-			Expect(createdResource).To(Equal(returnedResource))
+			Expect(&createdResource).To(Equal(returnedResource))
 		})
 
 		It("Fetch previously created resource", func() {
 			Expect(testSchema.CreateRaw(&createdResource, context)).To(Succeed())
-			returnedResource := test.Test{}
-			Expect(testSchema.FetchRaw(createdResource.ID, &returnedResource, context)).To(Succeed())
-			Expect(createdResource).To(Equal(returnedResource))
+			returnedResource, err := testSchema.FetchRaw(createdResource.ID, context)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(&createdResource).To(Equal(returnedResource))
 		})
 
 		It("DeleteRaw previously created resource", func() {
 			Expect(testSchema.CreateRaw(&createdResource, context)).To(Succeed())
 			Expect(testSchema.DeleteRaw(goext.Filter{"id": createdResource.ID}, context)).To(Succeed())
-			returnedResource := test.Test{}
-			err := testSchema.FetchRaw(createdResource.ID, &returnedResource, context)
+			_, err := testSchema.FetchRaw(createdResource.ID, context)
 			Expect(err).To(HaveOccurred())
 		})
 
@@ -118,9 +116,10 @@ var _ = Describe("Transaction", func() {
 			Expect(testSchema.CreateRaw(&createdResource, context)).To(Succeed())
 			createdResource.Description = "other-description"
 			Expect(testSchema.UpdateRaw(&createdResource, context)).To(Succeed())
-			returnedResource := test.Test{}
-			Expect(testSchema.FetchRaw(createdResource.ID, &returnedResource, context)).To(Succeed())
-			Expect(returnedResource.Description).To(Equal("other-description"))
+			returnedResource, err := testSchema.FetchRaw(createdResource.ID, context)
+			Expect(err).ToNot(HaveOccurred())
+			returnedTest := returnedResource.(*test.Test)
+			Expect(returnedTest.Description).To(Equal("other-description"))
 		})
 	})
 })

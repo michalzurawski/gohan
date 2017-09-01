@@ -158,17 +158,11 @@ func (thisSchema *Schema) assignField(name string, field reflect.Value, value in
 }
 
 // ListRaw lists schema raw resources
-func (thisSchema *Schema) ListRaw(rawResources interface{}, filter goext.Filter, paginator *goext.Paginator, context goext.Context) error {
-	if !isPointer(rawResources) {
-		return ErrNotPointer
+func (thisSchema *Schema) ListRaw(filter goext.Filter, paginator *goext.Paginator, context goext.Context) ([]interface{}, error) {
+	resourceType, ok := GlobRawTypes[thisSchema.ID()]
+	if !ok {
+		return nil, ErrMissingType
 	}
-	slicePtrValue := reflect.ValueOf(rawResources)
-	slicePtrType := reflect.TypeOf(rawResources)
-	sliceValue := slicePtrValue.Elem()
-	sliceType := slicePtrType.Elem()
-	elemType := sliceType.Elem()
-
-	sliceValue.SetLen(0)
 
 	if context == nil {
 		context = goext.MakeContext()
@@ -180,7 +174,7 @@ func (thisSchema *Schema) ListRaw(rawResources interface{}, filter goext.Filter,
 		tx, err = thisSchema.environment.Database().Begin()
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		defer tx.Close()
@@ -189,62 +183,53 @@ func (thisSchema *Schema) ListRaw(rawResources interface{}, filter goext.Filter,
 	data, _, err := tx.List(thisSchema, filter, nil, paginator)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	mapper := reflectx.NewMapper("db")
+	res := make([]interface{}, len(data), len(data))
 
 	for i := 0; i < len(data); i++ {
-		resource := reflect.New(elemType)
+		resource := reflect.New(resourceType)
 		mapped := mapper.FieldMap(resource)
 
 		for name, field := range mapped {
 			value := data[i][name]
 			if err := thisSchema.assignField(name, field, value); err != nil {
-				return err
+				return nil, err
 			}
 		}
-
-		sliceValue.Set(reflect.Append(sliceValue, resource.Elem()))
+		res[i] = resource.Interface()
 	}
 
-	return nil
+	return res, nil
 }
 
 // LockListRaw locks and returns raw resources
-func (thisSchema *Schema) LockListRaw(rawResources interface{}, filter goext.Filter, paginator *goext.Paginator, context goext.Context, policy goext.LockPolicy) error {
-	if !isPointer(rawResources) {
-		return ErrNotPointer
-	}
+func (thisSchema *Schema) LockListRaw(filter goext.Filter, paginator *goext.Paginator, context goext.Context, policy goext.LockPolicy) ([]interface{}, error) {
 	//TODO: implement proper locking
-	return thisSchema.ListRaw(rawResources, filter, paginator, context)
+	return thisSchema.ListRaw(filter, paginator, context)
 }
 
 // List returns list of resources.
 // Schema, Logger, Environment and pointer to raw resource are required fields in the resource
 func (thisSchema *Schema) List(filter goext.Filter, paginator *goext.Paginator, context goext.Context) ([]interface{}, error) {
-	resourceType, ok := GlobRawTypes[thisSchema.ID()]
-	if !ok {
-		return nil, ErrMissingType
-	}
-	rawResources := reflect.Zero(reflect.SliceOf(resourceType))
-	xRaw := reflect.New(rawResources.Type())
-	xRaw.Elem().Set(rawResources)
-	if err := thisSchema.ListRaw(xRaw.Interface(), filter, paginator, context); err != nil {
+	fetched, err := thisSchema.ListRaw(filter, paginator, context)
+	if err != nil {
 		return nil, err
 	}
+	xRaw := reflect.ValueOf(fetched)
 	return thisSchema.rawListToResourceList(xRaw), nil
 }
 
 // LockList locks and returns list of resources.
 // Schema, Logger, Environment and pointer to raw resource are required fields in the resource
 func (thisSchema *Schema) LockList(filter goext.Filter, paginator *goext.Paginator, context goext.Context, policy goext.LockPolicy) ([]interface{}, error) {
-	rawResources := reflect.Zero(reflect.SliceOf(GlobRawTypes[thisSchema.ID()]))
-	xRaw := reflect.New(rawResources.Type())
-	xRaw.Elem().Set(rawResources)
-	if err := thisSchema.LockListRaw(xRaw.Interface(), filter, paginator, context, policy); err != nil {
+	fetched, err := thisSchema.LockListRaw(filter, paginator, context, policy)
+	if err != nil {
 		return nil, err
 	}
+	xRaw := reflect.ValueOf(fetched)
 	return thisSchema.rawListToResourceList(xRaw), nil
 }
 
@@ -273,35 +258,36 @@ func (thisSchema *Schema) rawToResource(xRaw reflect.Value) interface{} {
 }
 
 // FetchRelatedRaw fetches related resources
-func (thisSchema *Schema) FetchRelatedRaw(rawResource interface{}, relatedResource interface{}, context goext.Context) error {
-	if !isPointer(rawResource) {
-		return ErrNotPointer
-	}
+func (thisSchema *Schema) FetchRelatedRaw(context goext.Context) ([]interface{}, error) {
+	var fetchedResources []interface{}
+	rawResourceType := GlobRawTypes[thisSchema.ID()]
+	rawResource := reflect.New(rawResourceType)
 	for _, property := range thisSchema.rawSchema.Properties {
 		if property.Relation != "" {
 			relatedSchema, ok := schema.GetManager().Schema(property.Relation)
 
 			if !ok {
-				return fmt.Errorf("Could not get related schema: %s for: %s", property.Relation, thisSchema.rawSchema.ID)
+				return nil, fmt.Errorf("Could not get related schema: %s for: %s", property.Relation, thisSchema.rawSchema.ID)
 			}
 
 			mapper := reflectx.NewMapper("db")
-			id := mapper.FieldByName(reflect.ValueOf(rawResource), property.ID).String()
+			id := mapper.FieldByName(rawResource, property.ID).String()
 
-			NewSchema(thisSchema.environment, relatedSchema).FetchRaw(id, relatedResource, context)
+			fetched, err := NewSchema(thisSchema.environment, relatedSchema).FetchRaw(id, context)
+			if err != nil {
+				return nil, err
+			}
+			fetchedResources = append(fetchedResources, fetched)
 
-			return nil
+			return fetchedResources, nil
 		}
 	}
 
-	return nil
+	return fetchedResources, nil
 }
 
 // FetchRaw fetches a raw resource by ID
-func (thisSchema *Schema) FetchRaw(id string, rawResource interface{}, context goext.Context) error {
-	if !isPointer(rawResource) {
-		return ErrNotPointer
-	}
+func (thisSchema *Schema) FetchRaw(id string, context goext.Context) (interface{}, error) {
 	if context == nil {
 		context = goext.MakeContext()
 	}
@@ -311,7 +297,7 @@ func (thisSchema *Schema) FetchRaw(id string, rawResource interface{}, context g
 		tx, err = thisSchema.environment.Database().Begin()
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		defer tx.Close()
@@ -324,13 +310,14 @@ func (thisSchema *Schema) FetchRaw(id string, rawResource interface{}, context g
 	data, err := tx.Fetch(thisSchema, filter)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 	resourceType, ok := GlobRawTypes[thisSchema.rawSchema.ID]
 	if !ok {
-		return fmt.Errorf("No type registered for schema: %s", thisSchema.rawSchema.ID)
+		return nil, fmt.Errorf("No type registered for schema: %s", thisSchema.rawSchema.ID)
 	}
-	resource := reflect.ValueOf(rawResource)
+	rawResources := GlobRawTypes[thisSchema.ID()]
+	resource := reflect.New(rawResources)
 
 	for i := 0; i < resourceType.NumField(); i++ {
 		field := resource.Elem().Field(i)
@@ -339,23 +326,23 @@ func (thisSchema *Schema) FetchRaw(id string, rawResource interface{}, context g
 		propertyName := fieldType.Tag.Get("db")
 		property, err := thisSchema.rawSchema.GetPropertyByID(propertyName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		value := data[property.ID]
 		thisSchema.assignField(propertyName, field, value)
 	}
 
-	return nil
+	return resource.Interface(), nil
 }
 
 // Fetch fetches a resource by id.
 // Schema, Logger, Environment and pointer to raw resource are required fields in the resource
 func (thisSchema *Schema) Fetch(id string, context goext.Context) (interface{}, error) {
-	rawResources := GlobRawTypes[thisSchema.ID()]
-	xRaw := reflect.New(rawResources)
-	if err := thisSchema.FetchRaw(id, xRaw.Interface(), context); err != nil {
+	fetched, err := thisSchema.FetchRaw(id, context)
+	if err != nil {
 		return nil, err
 	}
+	xRaw := reflect.ValueOf(fetched)
 	return thisSchema.rawToResource(xRaw.Elem()), nil
 }
 
@@ -370,8 +357,8 @@ func setValue(field, value reflect.Value) {
 }
 
 // LockFetchRaw locks and fetches resource by ID
-func (thisSchema *Schema) LockFetchRaw(id string, rawResource interface{}, context goext.Context, policy goext.LockPolicy) error {
-	return thisSchema.FetchRaw(id, rawResource, context)
+func (thisSchema *Schema) LockFetchRaw(id string, context goext.Context, policy goext.LockPolicy) (interface{}, error) {
+	return thisSchema.FetchRaw(id, context)
 }
 
 // CreateRaw creates a resource
@@ -589,24 +576,21 @@ func (thisSchema *Schema) DeleteRaw(filter goext.Filter, context goext.Context) 
 	contextTx := goext.MakeContext()
 	contextSetTransaction(contextTx, tx)
 
-	resources := reflect.Zero(reflect.SliceOf(GlobRawTypes[thisSchema.ID()]))
-	x := reflect.New(resources.Type())
-	x.Elem().Set(resources)
-	if err := thisSchema.LockListRaw(x.Interface(), filter, nil, contextTx, goext.LockRelatedResources); err != nil {
+	fetched, err := thisSchema.LockListRaw(filter, nil, contextTx, goext.LockRelatedResources)
+	if err != nil {
 		return err
 	}
-
-	if x.Elem().Len() == 0 {
+	fetchedLen := len(fetched)
+	if fetchedLen == 0 {
 		return fmt.Errorf("resource not found")
 	}
 
-	x = x.Elem()
 	mapper := reflectx.NewMapper("db")
-	for i := 0; i < x.Len(); i++ {
-		resource := x.Index(i)
+	for i := 0; i < fetchedLen; i++ {
+		resource := reflect.ValueOf(fetched[i])
 		resourceID := mapper.FieldByName(resource, "id").Interface()
 
-		contextTx = contextTx.WithResource(thisSchema.structToMap(resource.Addr().Interface())).
+		contextTx = contextTx.WithResource(thisSchema.structToMap(resource.Interface())).
 			WithSchemaID(thisSchema.ID())
 
 		if err = thisSchema.environment.HandleEvent(goext.PreDelete, contextTx); err != nil {

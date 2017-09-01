@@ -108,16 +108,16 @@ type ISchema interface {
 
 	// database
 	List(filter Filter, paginator *Paginator, context Context) ([]interface{}, error)
-	ListRaw(rawResources interface{}, filter Filter, paginator *Paginator, context Context) error
+	ListRaw(filter Filter, paginator *Paginator, context Context) ([]interface{}, error)
 
 	LockList(filter Filter, paginator *Paginator, context Context, lockPolicy LockPolicy) ([]interface{}, error)
-	LockListRaw(rawResources interface{}, filter Filter, paginator *Paginator, context Context, lockPolicy LockPolicy) error
+	LockListRaw(filter Filter, paginator *Paginator, context Context, lockPolicy LockPolicy) ([]interface{}, error)
 
 	Fetch(id string, context Context) (interface{}, error)
-	FetchRaw(id string, rawResource interface{}, context Context) error
+	FetchRaw(id string, context Context) (interface{}, error)
 
-	LockFetchRaw(id string, rawResource interface{}, context Context, lockPolicy LockPolicy) error
-	FetchRelatedRaw(rawResource interface{}, relatedResource interface{}, context Context) error
+	LockFetchRaw(id string, context Context, lockPolicy LockPolicy) (interface{}, error)
+	FetchRelatedRaw(context Context) ([]interface{}, error)
 
 	CreateRaw(rawResource interface{}, context Context) error
 
