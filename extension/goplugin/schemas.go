@@ -234,7 +234,6 @@ func (thisSchema *Schema) LockList(filter goext.Filter, paginator *goext.Paginat
 }
 
 func (thisSchema *Schema) rawListToResourceList(xRaw reflect.Value) []interface{} {
-	xRaw = xRaw.Elem()
 	resources := reflect.MakeSlice(reflect.SliceOf(GlobTypes[thisSchema.ID()]), xRaw.Len(), xRaw.Len())
 	x := reflect.New(resources.Type())
 	x.Elem().Set(resources)
@@ -243,12 +242,13 @@ func (thisSchema *Schema) rawListToResourceList(xRaw reflect.Value) []interface{
 	res := make([]interface{}, xRaw.Len(), xRaw.Len())
 	for i := 0; i < xRaw.Len(); i++ {
 		rawResource := xRaw.Index(i)
-		res[i] = thisSchema.rawToResource(rawResource)
+		res[i] = thisSchema.rawToResource(rawResource.Elem())
 	}
 	return res
 }
 
 func (thisSchema *Schema) rawToResource(xRaw reflect.Value) interface{} {
+	xRaw = xRaw.Elem()
 	resource := reflect.New(GlobTypes[thisSchema.ID()]).Elem()
 	setValue(resource.FieldByName(xRaw.Type().Name()), xRaw.Addr())
 	setValue(resource.FieldByName("Schema"), reflect.ValueOf(thisSchema))
@@ -314,7 +314,7 @@ func (thisSchema *Schema) Fetch(id string, context goext.Context) (interface{}, 
 		return nil, err
 	}
 	xRaw := reflect.ValueOf(fetched)
-	return thisSchema.rawToResource(xRaw.Elem()), nil
+	return thisSchema.rawToResource(xRaw), nil
 }
 
 func setValue(field, value reflect.Value) {
