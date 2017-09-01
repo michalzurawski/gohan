@@ -103,34 +103,49 @@ const PriorityDefault Priority = 0
 type ISchema interface {
 	IEnvironmentRef
 
-	// properties
+	// ID returns the identifier of this resource
 	ID() string
 
-	// database
+	// List returns a list of pointers to resources derived from BaseResource
 	List(filter Filter, paginator *Paginator, context Context) ([]interface{}, error)
+
+	// ListRaw returns a list of pointers to raw resources, containing db annotations
 	ListRaw(filter Filter, paginator *Paginator, context Context) ([]interface{}, error)
 
+	// LockList returns a list of pointers to locked resources derived from BaseResource
 	LockList(filter Filter, paginator *Paginator, context Context, lockPolicy LockPolicy) ([]interface{}, error)
+
+	// LockListRaw returns a list of pointers to locked raw resources, containing db annotations
 	LockListRaw(filter Filter, paginator *Paginator, context Context, lockPolicy LockPolicy) ([]interface{}, error)
 
+	// Fetch returns a pointer to resource derived from BaseResource
 	Fetch(id string, context Context) (interface{}, error)
+
+	// ListRaw returns a pointer to raw resource, containing db annotations
 	FetchRaw(id string, context Context) (interface{}, error)
 
+	// LockFetchRaw returns a pointer to locked raw resource, containing db annotations
 	LockFetchRaw(id string, context Context, lockPolicy LockPolicy) (interface{}, error)
-	FetchRelatedRaw(context Context) ([]interface{}, error)
 
+	// CreateRaw creates a raw resource, given by a pointer
 	CreateRaw(rawResource interface{}, context Context) error
 
+	// UpdateRaw updates a raw resource, given by a pointer
 	UpdateRaw(rawResource interface{}, context Context) error
+
+	// DbUpdateRaw updates a raw resource, given by a pointer, no events are emitted
 	DbUpdateRaw(rawResource interface{}, context Context) error
 
+	// DeleteRaw deletes a raw resource, given by a pointer
 	DeleteRaw(filter Filter, context Context) error
 
-	// events
+	// RegisterEventHandler registers an event handler for a named event with given priority
 	RegisterEventHandler(event string, handler func(context Context, resource Resource, environment IEnvironment) error, priority Priority)
 
-	// runtime types
+	// RegisterType registers a resource type, derived from BaseResource
 	RegisterType(resourceType interface{})
+
+	// RegisterRawType registers a raw resource type, containing db annotations
 	RegisterRawType(rawResourceType interface{})
 }
 

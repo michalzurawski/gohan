@@ -257,35 +257,6 @@ func (thisSchema *Schema) rawToResource(xRaw reflect.Value) interface{} {
 	return resource.Addr().Interface()
 }
 
-// FetchRelatedRaw fetches related resources
-func (thisSchema *Schema) FetchRelatedRaw(context goext.Context) ([]interface{}, error) {
-	var fetchedResources []interface{}
-	rawResourceType := GlobRawTypes[thisSchema.ID()]
-	rawResource := reflect.New(rawResourceType)
-	for _, property := range thisSchema.rawSchema.Properties {
-		if property.Relation != "" {
-			relatedSchema, ok := schema.GetManager().Schema(property.Relation)
-
-			if !ok {
-				return nil, fmt.Errorf("Could not get related schema: %s for: %s", property.Relation, thisSchema.rawSchema.ID)
-			}
-
-			mapper := reflectx.NewMapper("db")
-			id := mapper.FieldByName(rawResource, property.ID).String()
-
-			fetched, err := NewSchema(thisSchema.environment, relatedSchema).FetchRaw(id, context)
-			if err != nil {
-				return nil, err
-			}
-			fetchedResources = append(fetchedResources, fetched)
-
-			return fetchedResources, nil
-		}
-	}
-
-	return fetchedResources, nil
-}
-
 // FetchRaw fetches a raw resource by ID
 func (thisSchema *Schema) FetchRaw(id string, context goext.Context) (interface{}, error) {
 	if context == nil {
