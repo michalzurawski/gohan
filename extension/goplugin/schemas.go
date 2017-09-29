@@ -19,13 +19,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/cloudwan/gohan/db/transaction"
 	"github.com/cloudwan/gohan/extension/goext"
 	gohan_schema "github.com/cloudwan/gohan/schema"
 	"github.com/jmoiron/sqlx/reflectx"
-	"github.com/twinj/uuid"
 )
 
 var (
@@ -123,50 +121,22 @@ func (schema *Schema) ID() string {
 	return schema.raw.ID
 }
 
-// StructToMap converts structure representation of the resource to mapped representation
-func (schema *Schema) StructToMap(resource interface{}) map[string]interface{} {
-	fieldsMap := map[string]interface{}{}
+// ResourceFromContext converts mapped representation to structure representation of the resource registered for schema
+func (schema *Schema) ResourceFromContext(context map[string]interface{}) (goext.Resource, error) {
+	rawType, ok := schema.env.getRawType(schema.ID())
 
-	mapper := reflectx.NewMapper("db")
-	structMap := mapper.TypeMap(reflect.TypeOf(resource))
-	resourceValue := reflect.ValueOf(resource)
-
-	for _, property := range schema.raw.Properties {
-		field := property.ID
-		fi, ok := structMap.Names[property.ID]
-		if !ok {
-			panic(fmt.Sprintf("property %s not found in %+v", property.ID, resource))
-		}
-
-		v := reflectx.FieldByIndexesReadOnly(resourceValue, fi.Index)
-		val := v.Interface()
-		if field == "id" && v.String() == "" {
-			id := uuid.NewV4().String()
-			fieldsMap[field] = id
-			v.SetString(id)
-		} else if strings.Contains(v.Type().String(), "goext.Null") {
-			valid := v.FieldByName("Valid").Bool()
-			if valid {
-				fieldsMap[field] = v.FieldByName("Value").Interface()
-			} else {
-				fieldsMap[field] = nil
-			}
-		} else if v.Kind() == reflect.Ptr {
-			if v.IsNil() {
-				fieldsMap[field] = nil
-			} else {
-				fieldsMap[field] = val
-			}
-		} else {
-			fieldsMap[field] = val
-		}
+	if !ok {
+		return nil, fmt.Errorf("no raw type registered for schema: %s", schema.ID())
 	}
 
-	return fieldsMap
+	return resourceFromContext(context, rawType)
 }
 
 func (schema *Schema) structToResource(resource interface{}) (*gohan_schema.Resource, error) {
-	fieldsMap := schema.StructToMap(resource)
+	fieldsMap, err := schema.env.Util().ResourceToContext(resource)
+	if err != nil {
+		return nil, err
+	}
 	return gohan_schema.NewResource(schema.raw, fieldsMap)
 }
 
@@ -421,17 +391,21 @@ func (schema *Schema) create(rawResource interface{}, context goext.Context, tri
 	if context == nil {
 		context = goext.MakeContext()
 	}
+	ctx, err := schema.env.Util().ResourceToContext(rawResource)
+	if err != nil {
+		return err
+	}
 	tx, hasOpenTransaction := contextGetTransaction(context)
 	if hasOpenTransaction {
 		contextCopy := goext.MakeContext().
 			WithSchemaID(schema.ID()).
-			WithResource(schema.StructToMap(rawResource))
+			WithResource(ctx)
 		contextSetTransaction(contextCopy, tx)
 		return schema.createInTransaction(rawResource, contextCopy, tx, triggerEvents)
 	}
 
 	context.WithSchemaID(schema.ID()).
-		WithResource(schema.StructToMap(rawResource))
+		WithResource(ctx)
 
 	if triggerEvents {
 		if err := schema.env.HandleEvent(goext.PreCreate, context); err != nil {
@@ -439,7 +413,7 @@ func (schema *Schema) create(rawResource interface{}, context goext.Context, tri
 		}
 	}
 
-	tx, err := schema.env.Database().Begin()
+	tx, err = schema.env.Database().Begin()
 	if err != nil {
 		return err
 	}
@@ -452,11 +426,13 @@ func (schema *Schema) create(rawResource interface{}, context goext.Context, tri
 		}
 	}
 
-	if err = tx.Create(schema, context["resource"].(map[string]interface{})); err != nil {
+	ctxResource := context["resource"].(map[string]interface{})
+	if err = tx.Create(schema, ctxResource); err != nil {
 		return err
 	}
 
-	if err = schema.env.updateResourceFromContext(rawResource, context); err != nil {
+	rawResource, err = resourceFromContext(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
+	if err != nil {
 		return err
 	}
 
@@ -480,7 +456,7 @@ func (schema *Schema) create(rawResource interface{}, context goext.Context, tri
 	return schema.env.HandleEvent(goext.PostCreate, context)
 }
 
-func (schema *Schema) createInTransaction(resource interface{}, context goext.Context, tx goext.ITransaction, triggerEvents bool) error {
+func (schema *Schema) createInTransaction(rawResource interface{}, context goext.Context, tx goext.ITransaction, triggerEvents bool) error {
 	var err error
 
 	if triggerEvents {
@@ -493,11 +469,13 @@ func (schema *Schema) createInTransaction(resource interface{}, context goext.Co
 		}
 	}
 
-	if err = tx.Create(schema, context["resource"].(map[string]interface{})); err != nil {
+	ctxResource := context["resource"].(map[string]interface{})
+	if err = tx.Create(schema, ctxResource); err != nil {
 		return err
 	}
 
-	if err = schema.env.updateResourceFromContext(resource, context); err != nil {
+	rawResource, err = resourceFromContext(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
+	if err != nil {
 		return err
 	}
 
@@ -541,7 +519,11 @@ func (schema *Schema) update(rawResource interface{}, context goext.Context, tri
 	for k, v := range context {
 		contextCopy[k] = v
 	}
-	contextCopy.WithResource(schema.StructToMap(rawResource)).
+	ctx, err := schema.env.Util().ResourceToContext(rawResource)
+	if err != nil {
+		return err
+	}
+	contextCopy.WithResource(ctx).
 		WithResourceID(resourceData.ID()).
 		WithSchemaID(schema.ID())
 
@@ -568,11 +550,13 @@ func (schema *Schema) update(rawResource interface{}, context goext.Context, tri
 		}
 	}
 
-	if err = tx.Update(schema, contextCopy["resource"].(map[string]interface{})); err != nil {
+	ctxResource := contextCopy["resource"].(map[string]interface{})
+	if err = tx.Update(schema, ctxResource); err != nil {
 		return err
 	}
 
-	if err = schema.env.updateResourceFromContext(rawResource, contextCopy); err != nil {
+	rawResource, err = resourceFromContext(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
+	if err != nil {
 		return err
 	}
 
@@ -633,7 +617,11 @@ func (schema *Schema) delete(filter goext.Filter, context goext.Context, trigger
 		resource := reflect.ValueOf(fetched[i])
 		resourceID := mapper.FieldByName(resource, "id").Interface()
 
-		contextTx = contextTx.WithResource(schema.StructToMap(resource.Interface())).
+		ctx, err := schema.env.Util().ResourceToContext(resource.Interface())
+		if err != nil {
+			return err
+		}
+		contextTx = contextTx.WithResource(ctx).
 			WithSchemaID(schema.ID())
 
 		if triggerEvents {

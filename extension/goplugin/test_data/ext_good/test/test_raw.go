@@ -22,13 +22,13 @@ type Subobject struct {
 
 // Test is a test resource
 type Test struct {
-	ID          string     `db:"id"`
-	Description string     `db:"description"`
-	Subobject   *Subobject `db:"subobject"`
-	TestSuiteID *string    `db:"test_suite_id"`
+	ID          string     `db:"id" json:"id"`
+	Description string     `db:"description" json:"description"`
+	Subobject   *Subobject `db:"subobject" json:"subobject"`
+	TestSuiteID *string    `db:"test_suite_id" json:"test_suite_id"`
 }
 
 // TestSuite is a test suite resource
 type TestSuite struct {
-	ID string `db:"id"`
+	ID string `db:"id" json:"id"`
 }

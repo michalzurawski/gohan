@@ -304,4 +304,122 @@ var _ = Describe("Schemas", func() {
 		})
 	})
 
+	Context("Convert", func() {
+		It("should convert context to resource", func() {
+			context := map[string]interface{}{
+				"id":          "42",
+				"description": "test",
+				"subobject": map[string]interface{}{
+					"subproperty": "testproperty",
+				},
+			}
+			expected := &test.Test{
+				ID:          "42",
+				Description: "test",
+				Subobject: &test.Subobject{
+					Subproperty: "testproperty",
+				},
+			}
+
+			resource, err := testSchema.ResourceFromContext(context)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resource).To(Equal(expected))
+		})
+		It("should convert resource to context", func() {
+			resource := &test.Test{
+				ID:          "42",
+				Description: "test",
+				Subobject: &test.Subobject{
+					Subproperty: "testproperty",
+				},
+			}
+
+			context, err := env.Util().ResourceToContext(resource)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(context).To(HaveKeyWithValue("id", "42"))
+			Expect(context).To(HaveKeyWithValue("description", "test"))
+			Expect(context).To(HaveKey("subobject"))
+			Expect(context["subobject"]).To(HaveKeyWithValue("subproperty", "testproperty"))
+		})
+		It("should not change object after marshal and unmarshal", func() {
+			resource := &test.Test{
+				ID:          "42",
+				Description: "test",
+				Subobject: &test.Subobject{
+					Subproperty: "testproperty",
+				},
+			}
+
+			context, err := env.Util().ResourceToContext(resource)
+
+			Expect(err).ToNot(HaveOccurred())
+
+			result, err := testSchema.ResourceFromContext(context)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).To(Equal(resource))
+		})
+		It("should convert context to resource with nil suboject", func() {
+			context := map[string]interface{}{
+				"id":          "42",
+				"description": "test",
+				"subobject":   nil,
+			}
+			expected := &test.Test{
+				ID:          "42",
+				Description: "test",
+				Subobject:   nil,
+			}
+
+			resource, err := testSchema.ResourceFromContext(context)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resource).To(Equal(expected))
+		})
+		It("should convert resource to context", func() {
+			resource := &test.Test{
+				ID:          "42",
+				Description: "test",
+				Subobject:   nil,
+			}
+
+			context, err := env.Util().ResourceToContext(resource)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(context).To(HaveKeyWithValue("id", "42"))
+			Expect(context).To(HaveKeyWithValue("description", "test"))
+			Expect(context).To(HaveKey("subobject"))
+			Expect(context["subobject"]).To(BeNil())
+		})
+		It("should not convert context to resource with int passed as string", func() {
+			context := map[string]interface{}{
+				"id":          42,
+				"description": "test",
+				"subobject":   nil,
+			}
+
+			_, err := testSchema.ResourceFromContext(context)
+
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("invalid type of 'id' field (int, expecting string)"))
+		})
+		It("should convert context to resource with missing fields", func() {
+			context := map[string]interface{}{
+				"id":          nil,
+				"subobject":   nil,
+			}
+			expected := &test.Test{
+				ID:          "",
+				Description: "",
+				Subobject:   nil,
+			}
+
+			resource, err := testSchema.ResourceFromContext(context)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resource).To(Equal(expected))
+		})
+	})
 })

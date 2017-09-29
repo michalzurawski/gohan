@@ -16,11 +16,15 @@
 package goplugin
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/cloudwan/gohan/db/transaction"
 	"github.com/cloudwan/gohan/extension/goext"
 	"github.com/golang/mock/gomock"
+	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/twinj/uuid"
 )
 
@@ -66,4 +70,96 @@ func NewController(testReporter gomock.TestReporter) *gomock.Controller {
 
 func Finish(testReporter gomock.TestReporter) {
 	controllers[testReporter].Finish()
+}
+
+// ResourceFromContextForType converts mapped representation to structure representation of the resource for given type
+func (util *Util) ResourceFromContextForType(context map[string]interface{}, rawResource interface{}) (goext.Resource, error) {
+	return resourceFromContext(context, reflect.TypeOf(rawResource))
+}
+
+func resourceFromContext(context map[string]interface{}, rawType reflect.Type) (res goext.Resource, err error) {
+	resource := reflect.New(rawType)
+
+	for i := 0; i < rawType.NumField(); i++ {
+		field := resource.Elem().Field(i)
+		fieldType := rawType.Field(i)
+		propertyName := fieldType.Tag.Get("json")
+		if propertyName == "" {
+			return nil, fmt.Errorf("missing tag 'json' for resource %s field %s", rawType.Name(), fieldType.Name)
+		}
+		kind := fieldType.Type.Kind()
+		if kind == reflect.Struct || kind == reflect.Ptr || kind == reflect.Slice {
+			mapJSON, err := json.Marshal(context[propertyName])
+			if err != nil {
+				return nil, err
+			}
+			newField := reflect.New(field.Type())
+			fieldJSON := string(mapJSON)
+			fieldInterface := newField.Interface()
+			err = json.Unmarshal([]byte(fieldJSON), &fieldInterface)
+			if err != nil {
+				return nil, err
+			}
+			field.Set(newField.Elem())
+		} else {
+			value := reflect.ValueOf(context[propertyName])
+			if value.IsValid() {
+				if value.Type() == field.Type() {
+					field.Set(value)
+				} else {
+					if field.Kind() == reflect.Int && value.Kind() == reflect.Float64 { // reflect treats number(N, 0) as float
+						field.SetInt(int64(value.Float()))
+					} else {
+						return nil, fmt.Errorf("invalid type of '%s' field (%s, expecting %s)", propertyName, value.Kind(), field.Kind())
+					}
+				}
+			}
+		}
+	}
+
+	return resource.Interface(), nil
+}
+
+// ResourceToContext converts structure representation of the resource to mapped representation
+func (util *Util) ResourceToContext(resource interface{}) (map[string]interface{}, error) {
+	fieldsMap := map[string]interface{}{}
+
+	mapper := reflectx.NewMapper("json")
+	structMap := mapper.TypeMap(reflect.TypeOf(resource))
+	resourceValue := reflect.ValueOf(resource).Elem()
+
+	for field, fi := range structMap.Names {
+		if len(fi.Index) != 1 {
+			continue
+		}
+
+		v := resourceValue.FieldByIndex(fi.Index)
+		val := v.Interface()
+		if field == "id" && v.String() == "" {
+			id := uuid.NewV4().String()
+			fieldsMap[field] = id
+			v.SetString(id)
+		} else if strings.Contains(v.Type().String(), "goext.Null") {
+			valid := v.FieldByName("Valid").Bool()
+			if valid {
+				fieldsMap[field] = v.FieldByName("Value").Interface()
+			} else {
+				fieldsMap[field] = nil
+			}
+		} else if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				fieldsMap[field] = nil
+			} else {
+				marshaled, err := util.ResourceToContext(val)
+				if err != nil {
+					return nil, fmt.Errorf("failed to marshal property %s : %s", field, err.Error())
+				}
+				fieldsMap[field] = marshaled
+			}
+		} else {
+			fieldsMap[field] = val
+		}
+	}
+
+	return fieldsMap, nil
 }
