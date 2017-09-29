@@ -162,6 +162,46 @@ func (nf *NullFloat) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// IsDefined returns whether undefined value is defined
+func (ns *NullString) IsDefined() bool {
+	return ns != nil
+}
+
+// IsDefined returns whether undefined value is defined
+func (nb *NullBool) IsDefined() bool {
+	return nb != nil
+}
+
+// IsDefined returns whether undefined value is defined
+func (ni *NullInt) IsDefined() bool {
+	return ni != nil
+}
+
+// IsDefined returns whether undefined value is defined
+func (nf *NullFloat) IsDefined() bool {
+	return nf != nil
+}
+
+// Equals returns whether two undefined values are equal
+func (nf *NullFloat) Equals(rhv *NullFloat) bool {
+	return nf.IsDefined() && rhv.IsDefined() && nf.Valid && rhv.Valid && nf.Value == rhv.Value
+}
+
+// Equals returns whether two undefined values are equal
+func (nf *NullBool) Equals(rhv *NullBool) bool {
+	return nf.IsDefined() && rhv.IsDefined() && nf.Valid && rhv.Valid && nf.Value == rhv.Value
+}
+
+// Equals returns whether two undefined values are equal
+func (nf *NullString) Equals(rhv *NullString) bool {
+	return nf.IsDefined() && rhv.IsDefined() && nf.Valid && rhv.Valid && nf.Value == rhv.Value
+}
+
+// Equals returns whether two undefined values are equal
+func (nf *NullInt) Equals(rhv *NullInt) bool {
+	return nf.IsDefined() && rhv.IsDefined() && nf.Valid && rhv.Valid && nf.Value == rhv.Value
+}
+
 // MakeNullString allocates a new nullable string and sets its value
 func MakeNullString(value string) NullString {
 	return NullString{
@@ -189,6 +229,38 @@ func MakeNullInt(value int) NullInt {
 // MakeNullFloat allocates a new nullable float and sets its value
 func MakeNullFloat(value float64) NullFloat {
 	return NullFloat{
+		Value: value,
+		Valid: true,
+	}
+}
+
+// MakeUndefinedString allocates a new undefined string and sets its value
+func MakeUndefinedString(value string) *NullString {
+	return &NullString{
+		Value: value,
+		Valid: true,
+	}
+}
+
+// MakeUndefinedBool allocates a new undefined bool and sets its value
+func MakeUndefinedBool(value bool) *NullBool {
+	return &NullBool{
+		Value: value,
+		Valid: true,
+	}
+}
+
+// MakeUndefinedInt allocates a new undefined int and sets its value
+func MakeUndefinedInt(value int) *NullInt {
+	return &NullInt{
+		Value: value,
+		Valid: true,
+	}
+}
+
+// MakeUndefinedFloat allocates a new undefined float and sets its value
+func MakeUndefinedFloat(value float64) *NullFloat {
+	return &NullFloat{
 		Value: value,
 		Valid: true,
 	}

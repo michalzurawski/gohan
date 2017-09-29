@@ -99,24 +99,24 @@ var _ = Describe("Schemas", func() {
 			Expect(testSchema.Properties()).To(Equal(
 				[]goext.Property{
 					{
-						ID: "id",
+						ID:    "id",
 						Title: "ID",
 					},
 					{
-						ID: "description",
+						ID:    "description",
 						Title: "Description",
 					},
 					{
-						ID: "name",
+						ID:    "name",
 						Title: "Name",
 					},
 					{
-						ID: "test_suite_id",
-						Title: "Test Suite ID",
+						ID:       "test_suite_id",
+						Title:    "Test Suite ID",
 						Relation: "test_suite",
 					},
 					{
-						ID: "subobject",
+						ID:    "subobject",
 						Title: "Subobject",
 					},
 				},
@@ -436,7 +436,7 @@ var _ = Describe("Schemas", func() {
 			Expect(context).To(HaveKey("subobject"))
 			Expect(context["subobject"]).To(BeNil())
 		})
-		It("should convert resource to context with null string", func() {
+		It("should convert resource to context with null string defined", func() {
 			resource := &test.Test{
 				ID:          "42",
 				Description: "test",
