@@ -160,7 +160,8 @@ var _ = Describe("Schemas", func() {
 			createdResource = test.Test{
 				ID:          "some-id",
 				Description: "description",
-				TestSuiteID: nil,
+				TestSuiteID: goext.MakeNullString(),
+				Name:        goext.MakeNullString(),
 			}
 		})
 
@@ -590,11 +591,11 @@ var _ = Describe("Schemas", func() {
 			Expect(context).To(HaveKey("subobject"))
 			Expect(context["subobject"]).To(BeNil())
 		})
-		It("should convert resource to context with null string", func() {
+		It("should convert resource to context with null string defined", func() {
 			resource := &test.Test{
 				ID:          "42",
 				Description: "test",
-				Name:        goext.MakeNullString("testName"),
+				Name:        goext.MakeString("testName"),
 				Subobject:   nil,
 			}
 
@@ -610,7 +611,7 @@ var _ = Describe("Schemas", func() {
 			resource := &test.Test{
 				ID:          "42",
 				Description: "test",
-				Name:        goext.NullString{Valid: false},
+				Name:        goext.MakeNullString(),
 				Subobject:   nil,
 			}
 
@@ -660,7 +661,7 @@ var _ = Describe("Schemas", func() {
 			expected := &test.Test{
 				ID:          "",
 				Description: "",
-				Name:        goext.NullString{Valid: false},
+				Name:        goext.MakeNullString(),
 				Subobject:   nil,
 			}
 
@@ -678,7 +679,7 @@ var _ = Describe("Schemas", func() {
 			expected := &test.Test{
 				ID:          "",
 				Description: "",
-				Name:        goext.MakeNullString("testname"),
+				Name:        goext.MakeString("testname"),
 				Subobject:   nil,
 			}
 
