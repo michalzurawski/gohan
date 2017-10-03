@@ -341,7 +341,7 @@ func dispatchSchemaEventForEnv(env IEnvironment, prioritizedSchemaHandlers Prior
 	var resource goext.Resource
 	var err error
 	if ctxResource, ok := context["resource"]; ok {
-		if resource, err = sch.ResourceFromContext(ctxResource.(map[string]interface{})); err != nil {
+		if resource, err = sch.ResourceFromMap(ctxResource.(map[string]interface{})); err != nil {
 			env.Logger().Warningf("failed to parse resource from context with schema '%s' for event '%s': %s", sch.ID(), event, err)
 			return goext.NewError(goext.ErrorBadRequest, err)
 		}
@@ -353,7 +353,7 @@ func dispatchSchemaEventForEnv(env IEnvironment, prioritizedSchemaHandlers Prior
 				return err
 			}
 			if resource != nil {
-				context["resource"], err = env.Util().ResourceToContext(resource)
+				context["resource"], err = env.Util().ResourceToMap(resource)
 				if err != nil {
 					return goext.NewError(goext.ErrorInternalServerError, err)
 				}

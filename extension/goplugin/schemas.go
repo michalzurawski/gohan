@@ -121,19 +121,19 @@ func (schema *Schema) ID() string {
 	return schema.raw.ID
 }
 
-// ResourceFromContext converts mapped representation to structure representation of the resource registered for schema
-func (schema *Schema) ResourceFromContext(context map[string]interface{}) (goext.Resource, error) {
+// ResourceFromMap converts mapped representation to structure representation of the resource registered for schema
+func (schema *Schema) ResourceFromMap(context map[string]interface{}) (goext.Resource, error) {
 	rawType, ok := schema.env.getRawType(schema.ID())
 
 	if !ok {
 		return nil, fmt.Errorf("no raw type registered for schema: %s", schema.ID())
 	}
 
-	return resourceFromContext(context, rawType)
+	return resourceFromMap(context, rawType)
 }
 
 func (schema *Schema) structToResource(resource interface{}) (*gohan_schema.Resource, error) {
-	fieldsMap, err := schema.env.Util().ResourceToContext(resource)
+	fieldsMap, err := schema.env.Util().ResourceToMap(resource)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func (schema *Schema) create(rawResource interface{}, context goext.Context, tri
 	if context == nil {
 		context = goext.MakeContext()
 	}
-	ctx, err := schema.env.Util().ResourceToContext(rawResource)
+	ctx, err := schema.env.Util().ResourceToMap(rawResource)
 	if err != nil {
 		return err
 	}
@@ -431,7 +431,7 @@ func (schema *Schema) create(rawResource interface{}, context goext.Context, tri
 		return err
 	}
 
-	rawResource, err = resourceFromContext(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
+	rawResource, err = resourceFromMap(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
 	if err != nil {
 		return err
 	}
@@ -474,7 +474,7 @@ func (schema *Schema) createInTransaction(rawResource interface{}, context goext
 		return err
 	}
 
-	rawResource, err = resourceFromContext(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
+	rawResource, err = resourceFromMap(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
 	if err != nil {
 		return err
 	}
@@ -519,7 +519,7 @@ func (schema *Schema) update(rawResource interface{}, context goext.Context, tri
 	for k, v := range context {
 		contextCopy[k] = v
 	}
-	ctx, err := schema.env.Util().ResourceToContext(rawResource)
+	ctx, err := schema.env.Util().ResourceToMap(rawResource)
 	if err != nil {
 		return err
 	}
@@ -555,7 +555,7 @@ func (schema *Schema) update(rawResource interface{}, context goext.Context, tri
 		return err
 	}
 
-	rawResource, err = resourceFromContext(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
+	rawResource, err = resourceFromMap(ctxResource, reflect.ValueOf(rawResource).Elem().Type())
 	if err != nil {
 		return err
 	}
@@ -617,7 +617,7 @@ func (schema *Schema) delete(filter goext.Filter, context goext.Context, trigger
 		resource := reflect.ValueOf(fetched[i])
 		resourceID := mapper.FieldByName(resource, "id").Interface()
 
-		ctx, err := schema.env.Util().ResourceToContext(resource.Interface())
+		ctx, err := schema.env.Util().ResourceToMap(resource.Interface())
 		if err != nil {
 			return err
 		}

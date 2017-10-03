@@ -72,12 +72,12 @@ func Finish(testReporter gomock.TestReporter) {
 	controllers[testReporter].Finish()
 }
 
-// ResourceFromContextForType converts mapped representation to structure representation of the resource for given type
-func (util *Util) ResourceFromContextForType(context map[string]interface{}, rawResource interface{}) (goext.Resource, error) {
-	return resourceFromContext(context, reflect.TypeOf(rawResource))
+// ResourceFromMapForType converts mapped representation to structure representation of the resource for given type
+func (util *Util) ResourceFromMapForType(context map[string]interface{}, rawResource interface{}) (goext.Resource, error) {
+	return resourceFromMap(context, reflect.TypeOf(rawResource))
 }
 
-func resourceFromContext(context map[string]interface{}, rawType reflect.Type) (res goext.Resource, err error) {
+func resourceFromMap(context map[string]interface{}, rawType reflect.Type) (res goext.Resource, err error) {
 	resource := reflect.New(rawType)
 
 	for i := 0; i < rawType.NumField(); i++ {
@@ -120,8 +120,8 @@ func resourceFromContext(context map[string]interface{}, rawType reflect.Type) (
 	return resource.Interface(), nil
 }
 
-// ResourceToContext converts structure representation of the resource to mapped representation
-func (util *Util) ResourceToContext(resource interface{}) (map[string]interface{}, error) {
+// ResourceToMap converts structure representation of the resource to mapped representation
+func (util *Util) ResourceToMap(resource interface{}) (map[string]interface{}, error) {
 	fieldsMap := map[string]interface{}{}
 
 	mapper := reflectx.NewMapper("json")
@@ -150,7 +150,7 @@ func (util *Util) ResourceToContext(resource interface{}) (map[string]interface{
 			if v.IsNil() {
 				fieldsMap[field] = nil
 			} else {
-				marshaled, err := util.ResourceToContext(val)
+				marshaled, err := util.ResourceToMap(val)
 				if err != nil {
 					return nil, fmt.Errorf("failed to marshal property %s : %s", field, err.Error())
 				}

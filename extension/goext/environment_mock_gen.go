@@ -851,28 +851,28 @@ func (mr *MockIUtilMockRecorder) NewUUID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewUUID", reflect.TypeOf((*MockIUtil)(nil).NewUUID))
 }
 
-// ResourceFromContextForType mocks base method
-func (m *MockIUtil) ResourceFromContextForType(arg0 map[string]interface{}, arg1 interface{}) (Resource, error) {
-	ret := m.ctrl.Call(m, "ResourceFromContextForType", arg0, arg1)
+// ResourceFromMapForType mocks base method
+func (m *MockIUtil) ResourceFromMapForType(arg0 map[string]interface{}, arg1 interface{}) (Resource, error) {
+	ret := m.ctrl.Call(m, "ResourceFromMapForType", arg0, arg1)
 	ret0, _ := ret[0].(Resource)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ResourceFromContextForType indicates an expected call of ResourceFromContextForType
-func (mr *MockIUtilMockRecorder) ResourceFromContextForType(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceFromContextForType", reflect.TypeOf((*MockIUtil)(nil).ResourceFromContextForType), arg0, arg1)
+// ResourceFromMapForType indicates an expected call of ResourceFromMapForType
+func (mr *MockIUtilMockRecorder) ResourceFromMapForType(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceFromMapForType", reflect.TypeOf((*MockIUtil)(nil).ResourceFromMapForType), arg0, arg1)
 }
 
-// ResourceToContext mocks base method
-func (m *MockIUtil) ResourceToContext(arg0 interface{}) (map[string]interface{}, error) {
-	ret := m.ctrl.Call(m, "ResourceToContext", arg0)
+// ResourceToMap mocks base method
+func (m *MockIUtil) ResourceToMap(arg0 interface{}) (map[string]interface{}, error) {
+	ret := m.ctrl.Call(m, "ResourceToMap", arg0)
 	ret0, _ := ret[0].(map[string]interface{})
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ResourceToContext indicates an expected call of ResourceToContext
-func (mr *MockIUtilMockRecorder) ResourceToContext(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceToContext", reflect.TypeOf((*MockIUtil)(nil).ResourceToContext), arg0)
+// ResourceToMap indicates an expected call of ResourceToMap
+func (mr *MockIUtilMockRecorder) ResourceToMap(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceToMap", reflect.TypeOf((*MockIUtil)(nil).ResourceToMap), arg0)
 }

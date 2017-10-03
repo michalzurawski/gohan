@@ -321,7 +321,7 @@ var _ = Describe("Schemas", func() {
 				},
 			}
 
-			resource, err := testSchema.ResourceFromContext(context)
+			resource, err := testSchema.ResourceFromMap(context)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resource).To(Equal(expected))
@@ -335,7 +335,7 @@ var _ = Describe("Schemas", func() {
 				},
 			}
 
-			context, err := env.Util().ResourceToContext(resource)
+			context, err := env.Util().ResourceToMap(resource)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(context).To(HaveKeyWithValue("id", "42"))
@@ -352,11 +352,11 @@ var _ = Describe("Schemas", func() {
 				},
 			}
 
-			context, err := env.Util().ResourceToContext(resource)
+			context, err := env.Util().ResourceToMap(resource)
 
 			Expect(err).ToNot(HaveOccurred())
 
-			result, err := testSchema.ResourceFromContext(context)
+			result, err := testSchema.ResourceFromMap(context)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(resource))
@@ -373,7 +373,7 @@ var _ = Describe("Schemas", func() {
 				Subobject:   nil,
 			}
 
-			resource, err := testSchema.ResourceFromContext(context)
+			resource, err := testSchema.ResourceFromMap(context)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resource).To(Equal(expected))
@@ -385,7 +385,7 @@ var _ = Describe("Schemas", func() {
 				Subobject:   nil,
 			}
 
-			context, err := env.Util().ResourceToContext(resource)
+			context, err := env.Util().ResourceToMap(resource)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(context).To(HaveKeyWithValue("id", "42"))
@@ -400,7 +400,7 @@ var _ = Describe("Schemas", func() {
 				"subobject":   nil,
 			}
 
-			_, err := testSchema.ResourceFromContext(context)
+			_, err := testSchema.ResourceFromMap(context)
 
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("invalid type of 'id' field (int, expecting string)"))
@@ -416,7 +416,7 @@ var _ = Describe("Schemas", func() {
 				Subobject:   nil,
 			}
 
-			resource, err := testSchema.ResourceFromContext(context)
+			resource, err := testSchema.ResourceFromMap(context)
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resource).To(Equal(expected))
