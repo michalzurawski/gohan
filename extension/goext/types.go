@@ -1,5 +1,7 @@
 package goext
 
+import "encoding/json"
+
 type MaybeState int
 
 const (
@@ -30,6 +32,70 @@ type MaybeInt struct {
 type MaybeBool struct {
 	State MaybeState
 	Value bool
+}
+
+func (ms *MaybeString) UnmarshalJSON(b []byte) error {
+	if b == nil {
+		ms.State = MaybeNull
+	} else if err := json.Unmarshal(b, &ms.Value); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ms MaybeString) MarshalJSON() ([]byte, error) {
+	if ms.IsNull() || ms.IsUndefined() {
+		return []byte("null"), nil
+	}
+	return json.Marshal(ms.Value)
+}
+
+func (mi *MaybeInt) UnmarshalJSON(b []byte) error {
+	if b == nil {
+		mi.State = MaybeNull
+	} else if err := json.Unmarshal(b, &mi.Value); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mi MaybeInt) MarshalJSON() ([]byte, error) {
+	if mi.IsNull() || mi.IsUndefined() {
+		return []byte("null"), nil
+	}
+	return json.Marshal(mi.Value)
+}
+
+func (mb *MaybeBool) UnmarshalJSON(b []byte) error {
+	if b == nil {
+		mb.State = MaybeNull
+	} else if err := json.Unmarshal(b, &mb.Value); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mb MaybeBool) MarshalJSON() ([]byte, error) {
+	if mb.IsNull() || mb.IsUndefined() {
+		return []byte("null"), nil
+	}
+	return json.Marshal(mb.Value)
+}
+
+func (mf *MaybeFloat) UnmarshalJSON(b []byte) error {
+	if b == nil {
+		mf.State = MaybeNull
+	} else if err := json.Unmarshal(b, &mf.Value); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mf MaybeFloat) MarshalJSON() ([]byte, error) {
+	if mf.IsNull() || mf.IsUndefined() {
+		return []byte("null"), nil
+	}
+	return json.Marshal(mf.Value)
 }
 
 // IsUndefined returns whether value is undefined
@@ -107,11 +173,11 @@ func (mf MaybeFloat) IsNotNull() bool {
 */
 
 // Equals returns whether two maybe values are equal
-func (this MaybeFloat) Equals(other MaybeFloat) bool {
-	if this.IsNotNull() && other.IsNotNull() {
-		return this.Value == other.Value
+func (mf MaybeFloat) Equals(other MaybeFloat) bool {
+	if mf.IsNotNull() && other.IsNotNull() {
+		return mf.Value == other.Value
 	}
-	return !this.IsNotNull() && !other.IsNotNull()
+	return !mf.IsNotNull() && !other.IsNotNull()
 }
 
 // Equals returns whether two maybe values are equal
@@ -123,11 +189,11 @@ func (this MaybeString) Equals(other MaybeString) bool {
 }
 
 // Equals returns whether two maybe values are equal
-func (this MaybeBool) Equals(other MaybeBool) bool {
-	if this.IsNotNull() && other.IsNotNull() {
-		return this.Value == other.Value
+func (mb MaybeBool) Equals(other MaybeBool) bool {
+	if mb.IsNotNull() && other.IsNotNull() {
+		return mb.Value == other.Value
 	}
-	return !this.IsNotNull() && !other.IsNotNull()
+	return !mb.IsNotNull() && !other.IsNotNull()
 }
 
 // Equals returns whether two maybe values are equal
