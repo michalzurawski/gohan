@@ -39,19 +39,19 @@ var _ = Describe("Util tests", func() {
 
 		Context("Undefined null values", func() {
 			type TestResource struct {
-				UndefinedNull *goext.NullInt `json:"undefined_null"`
+				MaybeInt goext.MaybeInt `json:"maybe_int"`
 			}
 
 			It("value defined", func() {
 				input := map[string]interface{}{
-					"undefined_null": 1,
+					"maybe_int": 1,
 				}
 
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.UndefinedNull.Valid).To(BeTrue())
-				Expect(resource.UndefinedNull.Value).To(Equal(1))
+				Expect(resource.MaybeInt.IsNotNull()).To(BeTrue())
+				Expect(resource.MaybeInt.Value).To(Equal(1))
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -63,7 +63,7 @@ var _ = Describe("Util tests", func() {
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.UndefinedNull).To(BeNil())
+				Expect(resource.MaybeInt.IsUndefined()).To(BeTrue())
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -71,14 +71,13 @@ var _ = Describe("Util tests", func() {
 
 			It("value null", func() {
 				input := map[string]interface{}{
-					"undefined_null": nil,
+					"maybe_int": nil,
 				}
 
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.UndefinedNull).ToNot(BeNil())
-				Expect(resource.UndefinedNull.Valid).To(BeFalse())
+				Expect(resource.MaybeInt.IsNull()).To(BeTrue())
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -87,24 +86,27 @@ var _ = Describe("Util tests", func() {
 
 		Context("Null values", func() {
 			type TestResource struct {
-				NullInteger goext.NullInt    `json:"null_integer,omitempty"`
-				NullBool    goext.NullBool   `json:"null_bool,omitempty"`
-				NullString  goext.NullString `json:"null_string,omitempty"`
-				NullFloat   goext.NullFloat  `json:"null_float,omitempty"`
+				NullInteger goext.MaybeInt    `json:"maybe_integer,omitempty"`
+				NullBool    goext.MaybeBool   `json:"maybe_bool,omitempty"`
+				NullString  goext.MaybeString `json:"maybe_string,omitempty"`
+				NullFloat   goext.MaybeFloat  `json:"maybe_float,omitempty"`
 			}
 
 			It("integer", func() {
 				input := map[string]interface{}{
-					"null_integer": 123,
-					"null_bool":    nil,
-					"null_string":  nil,
-					"null_float":   nil,
+					"maybe_integer": 123,
+					"maybe_bool":    nil,
+					"maybe_string":  nil,
+					"maybe_float":   nil,
 				}
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.NullInteger.Valid).To(BeTrue())
+				Expect(resource.NullInteger.IsNotNull()).To(BeTrue())
 				Expect(resource.NullInteger.Value).To(Equal(123))
+				Expect(resource.NullFloat.IsNull()).To(BeTrue())
+				Expect(resource.NullBool.IsNull()).To(BeTrue())
+				Expect(resource.NullString.IsNull()).To(BeTrue())
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -112,16 +114,19 @@ var _ = Describe("Util tests", func() {
 
 			It("float", func() {
 				input := map[string]interface{}{
-					"null_float":   123.0,
-					"null_integer": nil,
-					"null_bool":    nil,
-					"null_string":  nil,
+					"maybe_float":   123.0,
+					"maybe_integer": nil,
+					"maybe_bool":    nil,
+					"maybe_string":  nil,
 				}
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.NullFloat.Valid).To(BeTrue())
+				Expect(resource.NullFloat.IsNotNull()).To(BeTrue())
 				Expect(resource.NullFloat.Value).To(Equal(123.0))
+				Expect(resource.NullInteger.IsNull()).To(BeTrue())
+				Expect(resource.NullBool.IsNull()).To(BeTrue())
+				Expect(resource.NullString.IsNull()).To(BeTrue())
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -129,16 +134,19 @@ var _ = Describe("Util tests", func() {
 
 			It("string", func() {
 				input := map[string]interface{}{
-					"null_string":  "hello",
-					"null_integer": nil,
-					"null_bool":    nil,
-					"null_float":   nil,
+					"maybe_string":  "hello",
+					"maybe_integer": nil,
+					"maybe_bool":    nil,
+					"maybe_float":   nil,
 				}
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.NullString.Valid).To(BeTrue())
+				Expect(resource.NullString.IsNotNull()).To(BeTrue())
 				Expect(resource.NullString.Value).To(Equal("hello"))
+				Expect(resource.NullFloat.IsNull()).To(BeTrue())
+				Expect(resource.NullBool.IsNull()).To(BeTrue())
+				Expect(resource.NullInteger.IsNull()).To(BeTrue())
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -146,16 +154,19 @@ var _ = Describe("Util tests", func() {
 
 			It("bool", func() {
 				input := map[string]interface{}{
-					"null_bool":    true,
-					"null_integer": nil,
-					"null_string":  nil,
-					"null_float":   nil,
+					"maybe_bool":    true,
+					"maybe_integer": nil,
+					"maybe_string":  nil,
+					"maybe_float":   nil,
 				}
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.NullBool.Valid).To(BeTrue())
+				Expect(resource.NullBool.IsNotNull()).To(BeTrue())
 				Expect(resource.NullBool.Value).To(BeTrue())
+				Expect(resource.NullFloat.IsNull()).To(BeTrue())
+				Expect(resource.NullString.IsNull()).To(BeTrue())
+				Expect(resource.NullString.IsNull()).To(BeTrue())
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -198,7 +209,7 @@ var _ = Describe("Util tests", func() {
 			type TestResource struct {
 				Obj struct {
 					NestedObj struct {
-						NullString goext.NullString `json:"null_string"`
+						NullString goext.MaybeString `json:"maybe_string"`
 					} `json:"nested_obj"`
 				} `json:"obj"`
 			}
@@ -256,14 +267,14 @@ var _ = Describe("Util tests", func() {
 				input := map[string]interface{}{
 					"obj": map[string]interface{}{
 						"nested_obj": map[string]interface{}{
-							"null_string": nil,
+							"maybe_string": nil,
 						},
 					},
 				}
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.Obj.NestedObj.NullString.Valid).To(BeFalse())
+				Expect(resource.Obj.NestedObj.NullString.IsNull()).To(BeTrue())
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
 				Expect(mapRepresentation).To(Equal(input))
@@ -273,7 +284,7 @@ var _ = Describe("Util tests", func() {
 				input := map[string]interface{}{
 					"obj": map[string]interface{}{
 						"nested_obj": map[string]interface{}{
-							"null_string": "hello",
+							"maybe_string": "hello",
 						},
 					},
 				}
@@ -281,7 +292,7 @@ var _ = Describe("Util tests", func() {
 				rawResource, err := env.Util().ResourceFromMapForType(input, TestResource{})
 				Expect(err).To(BeNil())
 				resource := rawResource.(*TestResource)
-				Expect(resource.Obj.NestedObj.NullString.Valid).To(BeTrue())
+				Expect(resource.Obj.NestedObj.NullString.IsNotNull()).To(BeTrue())
 				Expect(resource.Obj.NestedObj.NullString.Value).To(Equal("hello"))
 
 				mapRepresentation := env.Util().ResourceToMap(resource)
@@ -359,17 +370,17 @@ var _ = Describe("Util tests", func() {
 			Context("of objects", func() {
 				type TestResource struct {
 					ArrayOfPtrsToObj []*struct {
-						NullInteger goext.NullInt    `json:"null_integer,omitempty"`
-						String      string           `json:"string"`
-						Ptr         goext.NullString `json:"ptr,omitempty"`
-						Integer     int              `json:"integer"`
+						NullInteger goext.MaybeInt    `json:"maybe_integer,omitempty"`
+						String      string            `json:"string"`
+						Ptr         goext.MaybeString `json:"ptr,omitempty"`
+						Integer     int               `json:"integer"`
 					} `json:"array_of_ptrs_to_obj"`
 				}
 
 				It("input as slice of interfaces but maps inside", func() {
 					structAsMap := map[string]interface{}{
-						"null_integer": 123,
-						"string":       "hello",
+						"maybe_integer": 123,
+						"string":        "hello",
 					}
 					input := map[string]interface{}{
 						"array_of_ptrs_to_obj": []interface{}{
@@ -381,9 +392,9 @@ var _ = Describe("Util tests", func() {
 					resource := rawResource.(*TestResource)
 					Expect(resource.ArrayOfPtrsToObj).To(HaveLen(1))
 					Expect(resource.ArrayOfPtrsToObj[0].String).To(Equal("hello"))
-					Expect(resource.ArrayOfPtrsToObj[0].NullInteger.Valid).To(BeTrue())
+					Expect(resource.ArrayOfPtrsToObj[0].NullInteger.IsNotNull()).To(BeTrue())
 					Expect(resource.ArrayOfPtrsToObj[0].NullInteger.Value).To(Equal(123))
-					Expect(resource.ArrayOfPtrsToObj[0].Ptr.Valid).To(BeFalse())
+					Expect(resource.ArrayOfPtrsToObj[0].Ptr.IsUndefined()).To(BeTrue())
 					Expect(resource.ArrayOfPtrsToObj[0].Integer).To(Equal(0))
 
 					mapRepresentation := env.Util().ResourceToMap(resource)
@@ -411,8 +422,8 @@ var _ = Describe("Util tests", func() {
 					input := map[string]interface{}{
 						"array_of_ptrs_to_obj": []map[string]interface{}{
 							{
-								"null_integer": 123,
-								"string":       "hello",
+								"maybe_integer": 123,
+								"string":        "hello",
 							},
 						},
 					}
@@ -421,9 +432,9 @@ var _ = Describe("Util tests", func() {
 					resource := rawResource.(*TestResource)
 					Expect(resource.ArrayOfPtrsToObj).To(HaveLen(1))
 					Expect(resource.ArrayOfPtrsToObj[0].String).To(Equal("hello"))
-					Expect(resource.ArrayOfPtrsToObj[0].NullInteger.Valid).To(BeTrue())
+					Expect(resource.ArrayOfPtrsToObj[0].NullInteger.IsNotNull()).To(BeTrue())
 					Expect(resource.ArrayOfPtrsToObj[0].NullInteger.Value).To(Equal(123))
-					Expect(resource.ArrayOfPtrsToObj[0].Ptr.Valid).To(BeFalse())
+					Expect(resource.ArrayOfPtrsToObj[0].Ptr.IsUndefined()).To(BeTrue())
 					Expect(resource.ArrayOfPtrsToObj[0].Integer).To(Equal(0))
 
 					mapRepresentation := env.Util().ResourceToMap(resource)

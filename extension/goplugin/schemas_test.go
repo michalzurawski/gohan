@@ -440,7 +440,7 @@ var _ = Describe("Schemas", func() {
 			resource := &test.Test{
 				ID:          "42",
 				Description: "test",
-				Name:        goext.MakeNullString("testName"),
+				Name:        goext.MakeMaybeString("testName"),
 				Subobject:   nil,
 			}
 
@@ -456,7 +456,7 @@ var _ = Describe("Schemas", func() {
 			resource := &test.Test{
 				ID:          "42",
 				Description: "test",
-				Name:        goext.NullString{Valid: false},
+				Name:        goext.MakeNullString(),
 				Subobject:   nil,
 			}
 
@@ -506,7 +506,7 @@ var _ = Describe("Schemas", func() {
 			expected := &test.Test{
 				ID:          "",
 				Description: "",
-				Name:        goext.NullString{Valid: false},
+				Name:        goext.MakeNullString(),
 				Subobject:   nil,
 			}
 
@@ -524,7 +524,7 @@ var _ = Describe("Schemas", func() {
 			expected := &test.Test{
 				ID:          "",
 				Description: "",
-				Name:        goext.MakeNullString("testname"),
+				Name:        goext.MakeMaybeString("testname"),
 				Subobject:   nil,
 			}
 
