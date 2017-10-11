@@ -17,7 +17,6 @@ package goplugin
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -143,26 +142,6 @@ func (schema *Schema) structToResource(resource interface{}) (*gohan_schema.Reso
 	return gohan_schema.NewResource(schema.raw, fieldsMap)
 }
 
-func (schema *Schema) assignField(name string, field reflect.Value, value interface{}) error {
-	if field.Kind() == reflect.Struct || field.Kind() == reflect.Slice || field.Kind() == reflect.Ptr {
-		mapJSON, err := json.Marshal(value)
-		if err != nil {
-			return err
-		}
-		newField := reflect.New(field.Type())
-		fieldJSON := string(mapJSON)
-		fieldInterface := newField.Interface()
-		err = json.Unmarshal([]byte(fieldJSON), &fieldInterface)
-		if err != nil {
-			return err
-		}
-		field.Set(newField.Elem())
-	} else {
-		setValue(field, reflect.ValueOf(value))
-	}
-	return nil
-}
-
 // ListRaw lists schema raw resources
 func (schema *Schema) ListRaw(filter goext.Filter, paginator *goext.Paginator, requestContext goext.Context) ([]interface{}, error) {
 	return schema.listImpl(requestContext, func(ctx context.Context, tx goext.ITransaction) ([]map[string]interface{}, uint64, error) {
@@ -173,7 +152,7 @@ func (schema *Schema) ListRaw(filter goext.Filter, paginator *goext.Paginator, r
 type listFunc func(ctx context.Context, tx goext.ITransaction) ([]map[string]interface{}, uint64, error)
 
 func (schema *Schema) listImpl(requestContext goext.Context, list listFunc) ([]interface{}, error) {
-	resourceType, ok := schema.env.getRawType(schema.ID())
+	_, ok := schema.env.getRawType(schema.ID())
 	if !ok {
 		log.Warning(fmt.Sprintf("cannot find raw type for: %s", schema.ID()))
 		return nil, ErrMissingType
@@ -201,20 +180,14 @@ func (schema *Schema) listImpl(requestContext goext.Context, list listFunc) ([]i
 		return nil, err
 	}
 
-	mapper := reflectx.NewMapper("db")
 	res := make([]interface{}, len(data), len(data))
 
 	for i := 0; i < len(data); i++ {
-		resource := reflect.New(resourceType)
-		mapped := mapper.FieldMap(resource)
-
-		for name, field := range mapped {
-			value := data[i][name]
-			if err := schema.assignField(name, field, value); err != nil {
-				return nil, err
-			}
+		resource, err := schema.ResourceFromMap(data[i])
+		if err != nil {
+			return nil, err
 		}
-		res[i] = resource.Interface()
+		res[i] = resource
 	}
 
 	return res, nil
@@ -294,6 +267,10 @@ func (schema *Schema) LockFetchRaw(id string, requestContext goext.Context, poli
 type fetchFunc func(ctx context.Context, tx goext.ITransaction, filter goext.Filter) (map[string]interface{}, error)
 
 func (schema *Schema) fetchImpl(id string, requestContext goext.Context, fetch fetchFunc) (interface{}, error) {
+	_, ok := schema.env.getRawType(schema.raw.ID)
+	if !ok {
+		return nil, fmt.Errorf("No type registered for schema: %s", schema.raw.ID)
+	}
 	if requestContext == nil {
 		requestContext = goext.MakeContext()
 	}
@@ -321,27 +298,8 @@ func (schema *Schema) fetchImpl(id string, requestContext goext.Context, fetch f
 		}
 		return nil, err
 	}
-	resourceType, ok := schema.env.getRawType(schema.raw.ID)
-	if !ok {
-		return nil, fmt.Errorf("No type registered for schema: %s", schema.raw.ID)
-	}
-	rawResources, _ := schema.env.getRawType(schema.ID())
-	resource := reflect.New(rawResources)
 
-	for i := 0; i < resourceType.NumField(); i++ {
-		field := resource.Elem().Field(i)
-
-		fieldType := resourceType.Field(i)
-		propertyName := fieldType.Tag.Get("db")
-		property, err := schema.raw.GetPropertyByID(propertyName)
-		if err != nil {
-			return nil, err
-		}
-		value := data[property.ID]
-		schema.assignField(propertyName, field, value)
-	}
-
-	return resource.Interface(), nil
+	return schema.ResourceFromMap(data)
 }
 
 // Fetch fetches a resource by id.

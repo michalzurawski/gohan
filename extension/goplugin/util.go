@@ -101,7 +101,7 @@ func resourceFromMap(context map[string]interface{}, resource reflect.Value) err
 		fieldType := resource.Type().Field(i)
 		propertyName := strings.Split(fieldType.Tag.Get("json"), ",")[0]
 		if propertyName == "" {
-			return fmt.Errorf("missing tag 'json' for resource %s field %s", resource.Type().Name(), fieldType.Name)
+			return fmt.Errorf("missing tag 'json' for resource %s field %s", resource.Type().String(), fieldType.Name)
 		}
 		kind := fieldType.Type.Kind()
 		mapValue, mapValueExists := context[propertyName]
