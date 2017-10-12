@@ -154,10 +154,13 @@ var _ = Describe("Schemas", func() {
 
 			context = goext.MakeContext().WithTransaction(tx)
 
+			name := goext.MaybeString{goext.MaybeNull, ""}
+
 			createdResource = test.Test{
 				ID:          "some-id",
 				Description: "description",
 				TestSuiteID: nil,
+				Name:        name,
 			}
 		})
 
