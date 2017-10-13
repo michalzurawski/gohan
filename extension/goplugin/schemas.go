@@ -31,10 +31,11 @@ import (
 var (
 	// ErrNotPointer indicates that a resource was not passed by a pointer
 	ErrNotPointer = fmt.Errorf("raw resource must be passed by a pointer")
-
-	// ErrMissingType indicates that a runtime type was not registered for a resource
-	ErrMissingType = fmt.Errorf("resource type not registered")
 )
+
+func makeErrMissingType(missingType string) error {
+	return fmt.Errorf("resource type '%s'not registered", missingType)
+}
 
 func isPointer(resource interface{}) bool {
 	rv := reflect.ValueOf(resource)
@@ -172,7 +173,7 @@ func (schema *Schema) listImpl(requestContext goext.Context, list listFunc) ([]i
 	resourceType, ok := schema.env.getRawType(schema.ID())
 	if !ok {
 		log.Warning(fmt.Sprintf("cannot find raw type for: %s", schema.ID()))
-		return nil, ErrMissingType
+		return nil, makeErrMissingType(schema.ID())
 	}
 
 	if requestContext == nil {

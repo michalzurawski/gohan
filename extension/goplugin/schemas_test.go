@@ -33,11 +33,12 @@ import (
 
 var _ = Describe("Schemas", func() {
 	var (
-		env             *goplugin.Environment
-		dbFile          string
-		dbType          string
-		testSchema      goext.ISchema
-		testSuiteSchema goext.ISchema
+		env                    *goplugin.Environment
+		dbFile                 string
+		dbType                 string
+		testSchema             goext.ISchema
+		testSuiteSchema        goext.ISchema
+		testSchemaNoExtensions goext.ISchema
 	)
 
 	const (
@@ -60,16 +61,16 @@ var _ = Describe("Schemas", func() {
 		env = goplugin.NewEnvironment("test", nil, nil)
 		env.SetDatabase(rawDB)
 
-		err = env.Load("test_data/ext_good/ext_good.so")
-		Expect(err).To(BeNil())
+		Expect(env.Load("test_data/ext_good/ext_good.so")).To(Succeed())
 		Expect(env.Start()).To(Succeed())
 		testSchema = env.Schemas().Find("test")
 		Expect(testSchema).To(Not(BeNil()))
 		testSuiteSchema = env.Schemas().Find("test_suite")
 		Expect(testSuiteSchema).To(Not(BeNil()))
+		testSchemaNoExtensions = env.Schemas().Find("test_schema_no_ext")
+		Expect(testSchemaNoExtensions).To(Not(BeNil()))
 
-		err = db.InitDBWithSchemas(dbType, dbFile, true, true, false)
-		Expect(err).To(BeNil())
+		Expect(db.InitDBWithSchemas(dbType, dbFile, true, true, false)).To(Succeed())
 	})
 
 	AfterEach(func() {
@@ -99,24 +100,24 @@ var _ = Describe("Schemas", func() {
 			Expect(testSchema.Properties()).To(Equal(
 				[]goext.Property{
 					{
-						ID: "id",
+						ID:    "id",
 						Title: "ID",
 					},
 					{
-						ID: "description",
+						ID:    "description",
 						Title: "Description",
 					},
 					{
-						ID: "name",
+						ID:    "name",
 						Title: "Name",
 					},
 					{
-						ID: "test_suite_id",
-						Title: "Test Suite ID",
+						ID:       "test_suite_id",
+						Title:    "Test Suite ID",
 						Relation: "test_suite",
 					},
 					{
-						ID: "subobject",
+						ID:    "subobject",
 						Title: "Subobject",
 					},
 				},
@@ -201,6 +202,11 @@ var _ = Describe("Schemas", func() {
 			Expect(err).ToNot(HaveOccurred())
 			returnedTest := returnedResource.(*test.Test)
 			Expect(returnedTest.Description).To(Equal("other-description"))
+		})
+
+		It("should fail gracefully for not registered type", func() {
+			_, err := testSchemaNoExtensions.ListRaw(nil, nil, nil)
+			Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
 		})
 
 		Context("Resource not found", func() {
