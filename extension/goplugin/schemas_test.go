@@ -39,6 +39,8 @@ var _ = Describe("Schemas", func() {
 		testSchema             goext.ISchema
 		testSuiteSchema        goext.ISchema
 		testSchemaNoExtensions goext.ISchema
+		rawDB                  db.DB
+		schemaManager          *schema.Manager
 	)
 
 	const (
@@ -54,9 +56,10 @@ var _ = Describe("Schemas", func() {
 			dbType = "sqlite3"
 		}
 
-		manager := schema.GetManager()
-		Expect(manager.LoadSchemaFromFile(SchemaPath)).To(Succeed())
-		rawDB, err := db.ConnectDB(dbType, dbFile, db.DefaultMaxOpenConn, options.Default())
+		schemaManager = schema.GetManager()
+		Expect(schemaManager.LoadSchemaFromFile(SchemaPath)).To(Succeed())
+		var err error
+		rawDB, err = db.ConnectDB(dbType, dbFile, db.DefaultMaxOpenConn, options.Default())
 		Expect(err).To(BeNil())
 		env = goplugin.NewEnvironment("test", nil, nil)
 		env.SetDatabase(rawDB)
@@ -204,9 +207,73 @@ var _ = Describe("Schemas", func() {
 			Expect(returnedTest.Description).To(Equal("other-description"))
 		})
 
-		It("should fail gracefully for not registered type", func() {
-			_, err := testSchemaNoExtensions.ListRaw(nil, nil, nil)
-			Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+		Context("Resource type not registered", func() {
+			resourceID := "testId"
+			filter := map[string]interface{}{
+				"id": resourceID,
+			}
+
+			BeforeEach(func() {
+				tx, err := rawDB.Begin()
+				Expect(err).ShouldNot(HaveOccurred())
+				resource, err := schemaManager.LoadResource("test_schema_no_ext", map[string]interface{}{
+					"id":   resourceID,
+					"name": "testName",
+				})
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(tx.Create(resource)).To(Succeed())
+				Expect(tx.Commit()).To(Succeed())
+			})
+
+			It("should fail gracefully in ListRaw", func() {
+				_, err := testSchemaNoExtensions.ListRaw(filter, nil, nil)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+
+			})
+
+			It("should fail gracefully in List", func() {
+				_, err := testSchemaNoExtensions.List(filter, nil, nil)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+			})
+
+			It("should fail gracefully in LockListRaw", func() {
+				_, err := testSchemaNoExtensions.LockListRaw(filter, nil, nil, goext.SkipRelatedResources)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+			})
+
+			It("should fail gracefully in LockList", func() {
+				_, err := testSchemaNoExtensions.LockList(filter, nil, nil, goext.SkipRelatedResources)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+			})
+
+			It("should fail gracefully in Fetch", func() {
+				_, err := testSchemaNoExtensions.Fetch(resourceID, nil)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+
+			})
+
+			It("should fail gracefully in FetchRaw", func() {
+				_, err := testSchemaNoExtensions.FetchRaw(resourceID, nil)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+			})
+
+			It("should fail gracefully in LockFetch", func() {
+				_, err := testSchemaNoExtensions.LockFetch(resourceID, nil, goext.SkipRelatedResources)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+			})
+
+			It("should fail gracefully in LockFetchRaw", func() {
+				_, err := testSchemaNoExtensions.LockFetchRaw(resourceID, nil, goext.SkipRelatedResources)
+				Expect(err.Error()).To(ContainSubstring("test_schema_no_ext"))
+				Expect(err.Error()).To(ContainSubstring("not registered"))
+			})
 		})
 
 		Context("Resource not found", func() {

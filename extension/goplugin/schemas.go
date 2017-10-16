@@ -34,7 +34,7 @@ var (
 )
 
 func makeErrMissingType(missingType string) error {
-	return fmt.Errorf("resource type '%s'not registered", missingType)
+	return fmt.Errorf("resource type '%s' not registered", missingType)
 }
 
 func isPointer(resource interface{}) bool {
@@ -129,7 +129,8 @@ func (schema *Schema) ResourceFromMap(context map[string]interface{}) (goext.Res
 	rawType, ok := schema.env.getRawType(schema.ID())
 
 	if !ok {
-		return nil, fmt.Errorf("no raw type registered for schema: %s", schema.ID())
+		schema.env.Logger().Warningf("Resource type not registered for %s", schema.ID())
+		return nil, makeErrMissingType(schema.ID())
 	}
 
 	return resourceFromMap(context, rawType)
@@ -231,7 +232,7 @@ func (schema *Schema) List(filter goext.Filter, paginator *goext.Paginator, cont
 	if err != nil {
 		return nil, err
 	}
-	return schema.rawListToResourceList(fetched), nil
+	return schema.rawListToResourceList(fetched)
 }
 
 // LockList locks and returns list of resources.
@@ -241,37 +242,48 @@ func (schema *Schema) LockList(filter goext.Filter, paginator *goext.Paginator, 
 	if err != nil {
 		return nil, err
 	}
-	return schema.rawListToResourceList(fetched), nil
+	return schema.rawListToResourceList(fetched)
 }
 
-func (schema *Schema) rawListToResourceList(rawList []interface{}) []interface{} {
+func (schema *Schema) rawListToResourceList(rawList []interface{}) ([]interface{}, error) {
 	if len(rawList) == 0 {
-		return rawList
+		return rawList, nil
 	}
 	xRaw := reflect.ValueOf(rawList)
-	resourceType, _ := schema.env.getType(schema.ID())
+	resourceType, ok := schema.env.getType(schema.ID())
+	if !ok {
+		schema.env.Logger().Warningf("Resource type not registered for %s", schema.ID())
+		return nil, makeErrMissingType(schema.ID())
+	}
 	resources := reflect.MakeSlice(reflect.SliceOf(resourceType), xRaw.Len(), xRaw.Len())
 	x := reflect.New(resources.Type())
 	x.Elem().Set(resources)
 	x = x.Elem()
 
+	var err error
 	res := make([]interface{}, xRaw.Len(), xRaw.Len())
 	for i := 0; i < xRaw.Len(); i++ {
 		rawResource := xRaw.Index(i)
-		res[i] = schema.rawToResource(rawResource.Elem())
+		if res[i], err = schema.rawToResource(rawResource.Elem()); err != nil {
+			return nil, err
+		}
 	}
-	return res
+	return res, nil
 }
 
-func (schema *Schema) rawToResource(xRaw reflect.Value) interface{} {
+func (schema *Schema) rawToResource(xRaw reflect.Value) (interface{}, error) {
 	xRaw = xRaw.Elem()
-	resourceType, _ := schema.env.getType(schema.ID())
+	resourceType, ok := schema.env.getType(schema.ID())
+	if !ok {
+		schema.env.Logger().Warningf("Resource type not registered for %s", schema.ID())
+		return nil, makeErrMissingType(schema.ID())
+	}
 	resource := reflect.New(resourceType).Elem()
 	setValue(resource.FieldByName(xRaw.Type().Name()), xRaw.Addr())
 	setValue(resource.FieldByName("Schema"), reflect.ValueOf(schema))
 	setValue(resource.FieldByName("Logger"), reflect.ValueOf(NewLogger(schema.env)))
 	setValue(resource.FieldByName("Environment"), reflect.ValueOf(schema.env))
-	return resource.Addr().Interface()
+	return resource.Addr().Interface(), nil
 }
 
 // FetchRaw fetches a raw resource by ID
@@ -320,10 +332,10 @@ func (schema *Schema) fetchImpl(id string, requestContext goext.Context, fetch f
 	}
 	resourceType, ok := schema.env.getRawType(schema.raw.ID)
 	if !ok {
-		return nil, fmt.Errorf("No type registered for schema: %s", schema.raw.ID)
+		schema.env.Logger().Warningf("Resource type not registered for %s", schema.raw.ID)
+		return nil, makeErrMissingType(schema.raw.ID)
 	}
-	rawResources, _ := schema.env.getRawType(schema.ID())
-	resource := reflect.New(rawResources)
+	resource := reflect.New(resourceType)
 
 	for i := 0; i < resourceType.NumField(); i++ {
 		field := resource.Elem().Field(i)
@@ -349,7 +361,7 @@ func (schema *Schema) Fetch(id string, context goext.Context) (interface{}, erro
 		return nil, err
 	}
 	xRaw := reflect.ValueOf(fetched)
-	return schema.rawToResource(xRaw), nil
+	return schema.rawToResource(xRaw)
 }
 
 // LockFetch fetches a resource by id.
@@ -360,7 +372,7 @@ func (schema *Schema) LockFetch(id string, context goext.Context, lockPolicy goe
 		return nil, err
 	}
 	xRaw := reflect.ValueOf(fetched)
-	return schema.rawToResource(xRaw), nil
+	return schema.rawToResource(xRaw)
 }
 
 func setValue(field, value reflect.Value) {
