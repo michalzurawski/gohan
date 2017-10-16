@@ -128,7 +128,7 @@ func (schema *Schema) ResourceFromMap(context map[string]interface{}) (goext.Res
 	rawType, ok := schema.env.getRawType(schema.ID())
 
 	if !ok {
-		schema.env.Logger().Warningf("Resource type not registered for %s", schema.ID())
+		schema.env.Logger().Warningf("Raw resource type not registered for %s", schema.ID())
 		return nil, makeErrMissingType(schema.ID())
 	}
 
@@ -213,7 +213,7 @@ func (schema *Schema) rawListToResourceList(rawList []interface{}) ([]interface{
 	xRaw := reflect.ValueOf(rawList)
 	resourceType, ok := schema.env.getType(schema.ID())
 	if !ok {
-		schema.env.Logger().Warningf("Resource type not registered for %s", schema.ID())
+		schema.env.Logger().Warningf("Full resource type not registered for %s", schema.ID())
 		return nil, makeErrMissingType(schema.ID())
 	}
 	resources := reflect.MakeSlice(reflect.SliceOf(resourceType), xRaw.Len(), xRaw.Len())
@@ -236,7 +236,7 @@ func (schema *Schema) rawToResource(xRaw reflect.Value) (interface{}, error) {
 	xRaw = xRaw.Elem()
 	resourceType, ok := schema.env.getType(schema.ID())
 	if !ok {
-		schema.env.Logger().Warningf("Resource type not registered for %s", schema.ID())
+		schema.env.Logger().Warningf("Full resource type not registered for %s", schema.ID())
 		return nil, makeErrMissingType(schema.ID())
 	}
 	resource := reflect.New(resourceType).Elem()
