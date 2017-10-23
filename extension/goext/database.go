@@ -17,6 +17,7 @@ package goext
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -45,6 +46,20 @@ func DefaultDbOptions() DbOptions {
 		RetryTxCount:    0,
 		RetryTxInterval: 0,
 	}
+}
+func possibleDeadlockLocation() string {
+	where := ""
+	for n := 0; n < 32; n++ {
+		_, file, line, ok := runtime.Caller(n)
+		if !ok {
+			break
+		}
+		// omit gohan internals
+		if !strings.Contains(file, "github.com/cloudwan/gohan/extension") {
+			where += fmt.Sprintf("\n%s:%d", file, line)
+		}
+	}
+	return where
 }
 
 // IsDeadlock checks if error is deadlock
@@ -109,7 +124,7 @@ func withinDetached(db IDatabase, context Context, txBegin func() (ITransaction,
 			return err
 		}
 
-		log.Warning(fmt.Sprintf("scoped transaction deadlocked, retrying %d / %d", attempt, retryTxCount))
+		log.Warning(fmt.Sprintf("scoped transaction deadlocked, retrying %d / %d: %s", attempt, retryTxCount, possibleDeadlockLocation()))
 		time.Sleep(retryTxInterval)
 	}
 
