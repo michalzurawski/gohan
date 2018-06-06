@@ -1118,6 +1118,19 @@ var _ = Describe("Server package test", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 	})
+
+	Describe("Error messages", func() {
+		It("should not return db error when creating resource with non-existing key", func() {
+			responderPluralURL := baseURL + "/v2.0/responders"
+			responder := map[string]interface{}{
+				"id":                  "r1",
+				"pattern":             "Hello %s!",
+				"tenant_id":           memberTenantID,
+				"responder_parent_id": "not-existing-id",
+			}
+			testURLErrorMessage("POST", responderPluralURL, adminTokenID, responder, http.StatusBadRequest, "Related resource does not exist")
+		})
+	})
 })
 
 func BenchmarkPOSTAPI(b *testing.B) {
@@ -1288,6 +1301,14 @@ func testURL(method, url, token string, postData interface{}, expectedCode int) 
 	data, resp := httpRequest(method, url, token, postData)
 	jsonData, _ := json.MarshalIndent(data, "", "    ")
 	ExpectWithOffset(1, resp.StatusCode).To(Equal(expectedCode), string(jsonData))
+	return data
+}
+
+func testURLErrorMessage(method, url, token string, postData interface{}, expectedCode int, expectedMessage string) interface{} {
+	data, resp := httpRequest(method, url, token, postData)
+	jsonData, _ := json.MarshalIndent(data, "", "    ")
+	ExpectWithOffset(1, resp.StatusCode).To(Equal(expectedCode), string(jsonData))
+	Expect(data).To(HaveKeyWithValue("error", expectedMessage))
 	return data
 }
 

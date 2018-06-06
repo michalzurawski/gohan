@@ -660,7 +660,7 @@ func CreateResourceInTransaction(context middleware.Context, resourceSchema *sch
 		if isForeignKeyFailed(err) {
 			return ResourceError{
 				err,
-				fmt.Sprintf("Foreign resource not found: %v", err),
+				"Related resource does not exist",
 				ForeignKeyFailed}
 		}
 		return ResourceError{
@@ -840,7 +840,7 @@ func UpdateResourceInTransaction(
 		if isForeignKeyFailed(err) {
 			return ResourceError{
 				err,
-				fmt.Sprintf("Foreign resource not found: %v", err),
+				"Related resource does not exist",
 				ForeignKeyFailed}
 		}
 		return ResourceError{
