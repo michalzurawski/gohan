@@ -1466,9 +1466,10 @@ var _ = Describe("Resource manager", func() {
 						Expect(theResource).To(HaveKeyWithValue("test_string", ""))
 					})
 
-					It("should set request data in precreate", func() {
+					FIt("should set request data in precreate", func() {
 						delete(requestMap, "test_bool")
 						delete(requestMap, "test_string")
+						requestMap["id"] = "testid"
 						context["run_precreate"] = true
 						context["request_data"] = deepcopy.Copy(requestMap).(map[string]interface{})
 
@@ -1478,6 +1479,10 @@ var _ = Describe("Resource manager", func() {
 						Expect(ok).To(BeTrue())
 						Expect(theResource).To(HaveKeyWithValue("test_bool", false))
 						Expect(theResource).To(HaveKeyWithValue("test_string", "test123"))
+						Expect(resources.GetResources(context, testDB, currentSchema, map[string]interface{}{"id": "testid"}, nil)).To(Succeed())
+						getResources := context["response"].(map[string]interface{})[schemaID+"s"].([]interface{})
+						Expect(getResources).To(HaveLen(1))
+						Expect(getResources[0]).To(Equal(theResource))
 					})
 
 					It("should override request data in precreate", func() {

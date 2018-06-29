@@ -588,13 +588,19 @@ func CreateResource(
 	context["id"] = dataMap["id"]
 	context["schema_id"] = resourceSchema.ID
 
+	log.Critical("before pre create ctx %+v", context)
+	log.Critical("before pre create dataMap %+v", dataMap)
 	if err := extension.HandleEvent(context, environment, "pre_create", resourceSchema.ID); err != nil {
 		return err
 	}
+	log.Critical("after pre create ctx %+v", context)
+	log.Critical("after pre create dataMap %+v", dataMap)
 
-	if err := validate(context, dataMap, resourceSchema.ValidateOnCreate); err != nil {
+	if err := validate(context, &dataMap, resourceSchema.ValidateOnCreate); err != nil {
 		return err
 	}
+	log.Critical("after validate ctx %+v", context)
+	log.Critical("after validate dataMap %+v", dataMap)
 
 	resource, err := manager.LoadResource(resourceSchema.ID, dataMap)
 	if err != nil {
@@ -608,6 +614,8 @@ func CreateResource(
 	}
 
 	context["resource"] = resource.Data()
+	log.Critical("before pre create tx ctx %+v", context)
+	log.Critical("before pre create tx resource %+v", resource.Data())
 
 	if err := resourceTransactionWithContext(
 		context, dataStore,
@@ -642,6 +650,8 @@ func CreateResourceInTransaction(context middleware.Context, resourceSchema *sch
 	if err := extension.HandleEvent(context, environment, "pre_create_in_transaction", resourceSchema.ID); err != nil {
 		return err
 	}
+	log.Critical("after pre create tx ctx %+v", context)
+	log.Critical("after pre create tx resource %+v", resource.Data())
 	dataMap, ok := context["resource"].(map[string]interface{})
 	if ok {
 		var err error
@@ -650,6 +660,8 @@ func CreateResourceInTransaction(context middleware.Context, resourceSchema *sch
 			return fmt.Errorf("Loading resource failed: %s", err)
 		}
 	}
+	log.Critical("after 2 pre create tx ctx %+v", context)
+	log.Critical("after 2 pre create tx resource %+v", resource.Data())
 	if err := mainTransaction.Create(resource); err != nil {
 		log.Debug("%s transaction error", err)
 		if isForeignKeyFailed(err) {
@@ -660,6 +672,8 @@ func CreateResourceInTransaction(context middleware.Context, resourceSchema *sch
 			fmt.Sprintf("Failed to store data in database: %v", err),
 			CreateFailed}
 	}
+	log.Critical("after create tx ctx %+v", context)
+	log.Critical("after create tx resource %+v", resource.Data())
 
 	response := map[string]interface{}{}
 	response[resourceSchema.Singular] = resource.Data()
@@ -668,6 +682,8 @@ func CreateResourceInTransaction(context middleware.Context, resourceSchema *sch
 	if err := extension.HandleEvent(context, environment, "post_create_in_transaction", resourceSchema.ID); err != nil {
 		return err
 	}
+	log.Critical("after post create tx ctx %+v", context)
+	log.Critical("after post create tx resource %+v", resource.Data())
 
 	return nil
 }
@@ -778,7 +794,7 @@ func UpdateResourceInTransaction(
 		return ResourceError{err, err.Error(), WrongQuery}
 	}
 
-	if err := validate(context, dataMap, resourceSchema.ValidateOnUpdate); err != nil {
+	if err := validate(context, &dataMap, resourceSchema.ValidateOnUpdate); err != nil {
 		return err
 	}
 	policy := context["policy"].(*schema.Policy)
@@ -1027,7 +1043,7 @@ func loadPolicy(context middleware.Context, action, path string, auth schema.Aut
 
 type validateFunction func(interface{})(error)
 
-func validate(context middleware.Context, dataMap map[string]interface{}, validate validateFunction) error {
+func validate(context middleware.Context, dataMap *map[string]interface{}, validate validateFunction) error {
 	if _, ok := context[goValidationContextKey]; ok {
 		if err := validate(dataMap); err != nil {
 			return validationError(err)
@@ -1046,8 +1062,8 @@ func validationError(err error) error {
 	return ResourceError{err, fmt.Sprintf("Validation error: %s", err), WrongData}
 }
 
-func copyResourceData(context middleware.Context, dataMap map[string]interface{}) {
+func copyResourceData(context middleware.Context, dataMap *map[string]interface{}) {
 	if resourceData, ok := context["resource"].(map[string]interface{}); ok {
-		dataMap = resourceData
+		*dataMap = resourceData
 	}
 }
